@@ -66,7 +66,9 @@ class AsciiLevel(BaseLevel):
                     self.spawn_p2 = (wx, wy)
 
                 elif ch == "B":
-                    self.blocks.append(PushBlock(wx, wy))
+                    # spawn block on top of tile row
+                    self.blocks.append(PushBlock(wx, wy - TILE_SIZE))
+
 
                 elif ch == "T":
                     # torch is a background thing; place a little above tile center

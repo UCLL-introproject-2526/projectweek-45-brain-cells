@@ -7,23 +7,25 @@ class PlayerInput:
         self.jump = jump
         self.merge = merge
 
-        self._jump_was_down = False
-        self._merge_was_down = False
+        self._jump_prev = False
+        self._merge_prev = False
+
+    def reset(self):
+        self._jump_prev = False
+        self._merge_prev = False
 
     def axis(self):
         keys = pygame.key.get_pressed()
-        return (1 if keys[self.right] else 0) - (1 if keys[self.left] else 0)
+        return int(keys[self.right]) - int(keys[self.left])
 
     def jump_pressed(self):
         keys = pygame.key.get_pressed()
-        down = keys[self.jump]
-        pressed = down and not self._jump_was_down
-        self._jump_was_down = down
+        pressed = keys[self.jump] and not self._jump_prev
+        self._jump_prev = keys[self.jump]
         return pressed
 
     def merge_pressed(self):
         keys = pygame.key.get_pressed()
-        down = keys[self.merge]
-        pressed = down and not self._merge_was_down
-        self._merge_was_down = down
+        pressed = keys[self.merge] and not self._merge_prev
+        self._merge_prev = keys[self.merge]
         return pressed

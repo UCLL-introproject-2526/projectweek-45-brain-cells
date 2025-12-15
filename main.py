@@ -11,14 +11,39 @@ from ui.settings_menu import SettingsMenu
 from ui.level_select_menu import LevelSelectMenu
 
 from level.registry import discover_levels
+from save.save_manager import load_save, save_game
 
 
+# -----------------------------
+# INPUT BUILDING (FIXED)
+# -----------------------------
 def build_inputs(layout):
+    layout = layout.upper()
+
     if layout == "QWERTY":
-        p1 = PlayerInput(pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_e)
+        p1 = PlayerInput(
+            left=pygame.K_a,
+            right=pygame.K_d,
+            jump=pygame.K_w,
+            merge=pygame.K_e
+        )
+    elif layout == "AZERTY":
+        p1 = PlayerInput(
+            left=pygame.K_q,
+            right=pygame.K_d,
+            jump=pygame.K_z,
+            merge=pygame.K_e
+        )
     else:
-        p1 = PlayerInput(pygame.K_q, pygame.K_d, pygame.K_z, pygame.K_e)
-    p2 = PlayerInput(pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_RSHIFT)
+        raise ValueError(f"Unknown keyboard layout: {layout}")
+
+    p2 = PlayerInput(
+        left=pygame.K_LEFT,
+        right=pygame.K_RIGHT,
+        jump=pygame.K_UP,
+        merge=pygame.K_RSHIFT
+    )
+
     return p1, p2
 
 
@@ -36,6 +61,9 @@ def fell_out_of_world(actor):
     return actor.rect.top > KILL_Y
 
 
+# -----------------------------
+# INIT
+# -----------------------------
 pygame.init()
 pygame.mixer.init()
 
@@ -50,17 +78,15 @@ settings_menu = SettingsMenu(font)
 level_menu = LevelSelectMenu(font)
 effects = []
 
-# Auto-load all level*.py
+# SAVE DATA
+save_data = load_save()
+unlocked_levels = save_data.get("unlocked_levels", 1)
+
+# LEVELS
 level_classes = discover_levels("level")
-if not level_classes:
-    raise RuntimeError("No levels found. Make sure you have level/level1.py etc, and level/__init__.py")
+level_names = [getattr(c, "name", c.__name__) for c in level_classes]
 
-level_names = []
-for cls in level_classes:
-    nm = getattr(cls, "name", cls.__name__)
-    level_names.append(nm)
-
-# Inputs + players
+# INPUTS
 p1_input, p2_input = build_inputs("QWERTY")
 
 player1 = Player(120, 100, p1_input, (80, 160, 255))
@@ -70,26 +96,31 @@ merged = None
 merge_cooldown = 0.0
 menu_key_prev = False
 level_key_prev = False
-
-level = None
 t = 0.0
 running = True
 
+level = None
 
-def load_level_by_index(idx):
+
+def load_level(idx):
     global level, merged
     merged = None
-    level = level_classes[idx]()  # instantiate level
+    level = level_classes[idx]()
+
     player1.rect.topleft = level.spawn_p1
     player2.rect.topleft = level.spawn_p2
     player1.vel.xy = (0, 0)
     player2.vel.xy = (0, 0)
 
+    effects.clear()
 
-# start at menu
-load_level_by_index(0)
+
+load_level(0)
 level_menu.open()
 
+# -----------------------------
+# MAIN LOOP
+# -----------------------------
 while running:
     dt = clock.tick(FPS) / 1000.0
     t += dt
@@ -99,47 +130,57 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    # Toggle settings menu (M)
+    # Toggle settings (M)
     if keys[pygame.K_m] and not menu_key_prev:
         settings_menu.toggle()
+        level_menu.visible = False
     menu_key_prev = keys[pygame.K_m]
 
-    # Toggle level select menu (L)
+    # Toggle level select (L)
     if keys[pygame.K_l] and not level_key_prev:
         level_menu.open()
         settings_menu.visible = False
     level_key_prev = keys[pygame.K_l]
 
-    # -------- MENUS --------
+    camera.update([merged.rect] if merged else [player1.rect, player2.rect])
+    cam = camera.offset()
+
+    # -------------------------
+    # LEVEL SELECT MENU
+    # -------------------------
     if level_menu.visible:
-        choice = level_menu.handle_input(level_names)
+        choice = level_menu.handle_input(level_names, unlocked_levels)
         if choice is not None:
-            load_level_by_index(choice)
+            load_level(choice)
             level_menu.close()
 
-        # draw world behind menu (optional)
-        camera.update([player1.rect, player2.rect])
-        cam = camera.offset()
         level.draw_background(screen, cam, t)
         level.draw(screen, cam)
         player1.draw(screen, cam)
         player2.draw(screen, cam)
 
-        level_menu.draw(screen, level_names)
-
+        level_menu.draw(screen, level_names, unlocked_levels)
         pygame.display.flip()
         continue
 
+    # -------------------------
+    # SETTINGS MENU (FIXED)
+    # -------------------------
     if settings_menu.visible:
         settings_menu.handle_input()
 
-        p1_input, p2_input = build_inputs(settings_menu.layouts[settings_menu.layout_index])
+        # APPLY LAYOUT LIVE (FIXED)
+        p1_input, p2_input = build_inputs(
+            settings_menu.layouts[settings_menu.layout_index]
+        )
+        p1_input.reset()
+        p2_input.reset()
+
         player1.input = p1_input
         player2.input = p2_input
+
         pygame.mixer.music.set_volume(settings_menu.volume / 100.0)
 
-        camera.update([player1.rect, player2.rect])
-        cam = camera.offset()
         level.draw_background(screen, cam, t)
         level.draw(screen, cam)
         player1.draw(screen, cam)
@@ -149,7 +190,9 @@ while running:
         pygame.display.flip()
         continue
 
-    # -------- GAMEPLAY --------
+    # -------------------------
+    # GAMEPLAY
+    # -------------------------
     merge_cooldown = max(0.0, merge_cooldown - dt)
 
     if merged is None:
@@ -174,15 +217,10 @@ while running:
             merged = None
             merge_cooldown = MERGE_COOLDOWN_SEC
 
-    # level logic
-    active_actors = [merged] if merged else [player1, player2]
-    level.update(dt, active_actors)
+    active = [merged] if merged else [player1, player2]
+    level.update(dt, active)
 
-    # checkpoints (only when split; cooperative checkpoint)
-    if merged is None:
-        level.update_checkpoints(player1, player2)
-
-    # death checks
+    # DEATH
     died = False
     if merged:
         if hit_spikes(merged, level.spikes) or fell_out_of_world(merged):
@@ -199,31 +237,27 @@ while running:
         player1.vel.xy = (0, 0)
         player2.vel.xy = (0, 0)
 
-    # win: both in goal (split only)
+    # WIN / UNLOCK
     if merged is None and level.goal:
         if player1.rect.colliderect(level.goal.rect) and player2.rect.colliderect(level.goal.rect):
-            # go back to level menu instead of auto-next (nice for debugging)
+            idx = level_classes.index(type(level))
+            if idx + 1 > unlocked_levels:
+                unlocked_levels = idx + 1
+                save_data["unlocked_levels"] = unlocked_levels
+                save_game(save_data)
             level_menu.open()
 
-    # effects
+    # EFFECTS
     for e in effects[:]:
         e.update(dt)
         if e.done:
             effects.remove(e)
 
-    # camera
-    camera.update([merged.rect] if merged else [player1.rect, player2.rect])
-    cam = camera.offset()
-
-    # draw
+    # DRAW
     level.draw_background(screen, cam, t)
     level.draw(screen, cam)
-
-    if merged:
-        merged.draw(screen, cam)
-    else:
-        player1.draw(screen, cam)
-        player2.draw(screen, cam)
+    player1.draw(screen, cam)
+    player2.draw(screen, cam)
 
     for e in effects:
         e.draw(screen, cam)

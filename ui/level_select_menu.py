@@ -17,7 +17,7 @@ class LevelSelectMenu:
     def close(self):
         self.visible = False
 
-    def handle_input(self, level_names):
+    def handle_input(self, level_names, unlocked_count):
         keys = pygame.key.get_pressed()
 
         def pressed(key, prev):
@@ -41,12 +41,12 @@ class LevelSelectMenu:
         if esc:
             self.visible = False
 
-        if enter and level_names:
+        if enter and self.selected < unlocked_count:
             return self.selected
 
         return None
 
-    def draw(self, surface, level_names, title="SELECT LEVEL"):
+    def draw(self, surface, level_names, unlocked_count):
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 200))
         surface.blit(overlay, (0, 0))
@@ -56,13 +56,19 @@ class LevelSelectMenu:
         pygame.draw.rect(surface, (40, 40, 60), panel, border_radius=12)
         pygame.draw.rect(surface, (10, 10, 20), panel, 3, border_radius=12)
 
-        header = self.font.render(title, True, (240, 240, 255))
-        surface.blit(header, (panel.centerx - header.get_width() // 2, panel.top + 20))
+        title = self.font.render("SELECT LEVEL", True, (240, 240, 255))
+        surface.blit(title, (panel.centerx - title.get_width() // 2, panel.top + 20))
 
         y = panel.top + 90
         for i, name in enumerate(level_names):
-            col = (255, 220, 120) if i == self.selected else (220, 220, 235)
-            txt = self.font.render(name, True, col)
+            locked = i >= unlocked_count
+            color = (
+                (120, 120, 120) if locked
+                else ((255, 220, 120) if i == self.selected else (220, 220, 235))
+            )
+
+            label = name if not locked else f"{name} (LOCKED)"
+            txt = self.font.render(label, True, color)
             surface.blit(txt, (panel.left + 40, y))
             y += 40
 

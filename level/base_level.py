@@ -3,6 +3,7 @@ import random
 import math
 from settings import TILE_SIZE
 
+
 class Torch:
     def __init__(self, x, y):
         self.pos = pygame.Vector2(x, y)
@@ -23,10 +24,8 @@ class Torch:
         surface.blit(glow, (x - radius, y - radius))
 
         pygame.draw.circle(surface, (255, 170, 60), (x, y - 2), 4)
-        pygame.draw.circle(surface, (255, 220, 120), (x, y - 3), 2
+        pygame.draw.circle(surface, (255, 220, 120), (x, y - 3), 2)
 
-
-        )
 
 class BaseLevel:
     def __init__(self):
@@ -42,19 +41,18 @@ class BaseLevel:
         self.spawn_p1 = (120, 100)
         self.spawn_p2 = (200, 100)
 
-        # current respawn (changes with checkpoints)
         self.respawn_p1 = self.spawn_p1
         self.respawn_p2 = self.spawn_p2
 
         self.build()
 
-        # make sure respawns start as spawns
         self.respawn_p1 = self.spawn_p1
         self.respawn_p2 = self.spawn_p2
 
     def build(self):
         raise NotImplementedError
 
+    # Blocks ARE solid (important for standing)
     def solids(self):
         solids = list(self.tiles)
         solids += [d for d in self.doors if d.solid]
@@ -65,31 +63,19 @@ class BaseLevel:
         return list(actors) + list(self.blocks)
 
     def update(self, dt, actors):
+        # terrain + doors
         base_solids = list(self.tiles) + [d for d in self.doors if d.solid]
 
+        # 🔑 CRITICAL FIX: block must not collide with itself
         for b in self.blocks:
-            b.update(dt, base_solids)
+            solids_without_self = base_solids + [o for o in self.blocks if o is not b]
+            b.update(dt, solids_without_self)
 
         for s in self.switches:
             s.update(dt, self.actors_for_switches(actors))
 
         for d in self.doors:
             d.update(dt)
-
-    def update_checkpoints(self, player1, player2):
-        """
-        Activate checkpoint when either player touches it.
-        Sets respawn points for both players (co-op checkpoint).
-        """
-        for cp in self.checkpoints:
-            if cp.activated:
-                continue
-            if player1.rect.colliderect(cp.rect) or player2.rect.colliderect(cp.rect):
-                cp.activated = True
-                # respawn both near checkpoint (slight offset)
-                self.respawn_p1 = (cp.rect.x - 60, cp.rect.y - 40)
-                self.respawn_p2 = (cp.rect.x + 60, cp.rect.y - 40)
-                break
 
     def draw_background(self, surface, camera_offset, t):
         surface.fill((12, 12, 18))
