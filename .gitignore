@@ -8,3 +8,6 @@
 *.zip
 *.7z
 *.rar
+.pyc
+__pycache__/
+.DS_Store

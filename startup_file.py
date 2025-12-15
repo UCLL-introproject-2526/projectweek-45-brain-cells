@@ -1,260 +1,334 @@
-import pygame
+import pygame, sys, random
 
 pygame.init()
 
-# ================= CONFIG =================
-WIDTH, HEIGHT = 1200, 700
-FPS = 60
+# ---------------- CONFIG ----------------
+WIDTH, HEIGHT = 1000, 600
+SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Dungeon Merge Puzzle")
+CLOCK = pygame.time.Clock()
+GRAVITY = 0.7
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Puzzle Dungeon – Stable Player Collision")
-clock = pygame.time.Clock()
-font = pygame.font.SysFont(None, 24)
+# Colors
+BG = (20, 20, 25)
+STONE = (100, 100, 110)
+TORCH = (255, 140, 60)
+PLATE = (120, 50, 50)
+DOOR = (80, 160, 200)
+SPIKE = (200, 50, 50)
+COIN = (255, 215, 0)
 
-GRAVITY = 3000
-FRICTION = 0.82
+# Game state
+score = 0
+level = 1
+paused = False
 
-SOLO_JUMP = -720
-MERGED_JUMP = -1150
 
-# ================= HELPERS =================
-def clamp(v, a, b):
-    return max(a, min(b, v))
 
-def rect(pos, size):
-    return pygame.Rect(int(pos.x), int(pos.y), int(size.x), int(size.y))
+def resolve_collision(entity, platforms):
+    entity.on_ground = False
+    for p in platforms:
+        if entity.rect.colliderect(p.rect):
+            if entity.vel.y > 0:
+                entity.rect.bottom = p.rect.top
+                entity.vel.y = 0
+                entity.on_ground = True
 
-# ================= PHYSICS =================
-def move_and_collide(pos, vel, size, solids, dt):
-    grounded = False
+def check_bounds(entity):
+    if entity.rect.left < 0:
+        entity.rect.left = 0
+    if entity.rect.right > WIDTH:
+        entity.rect.right = WIDTH
 
-    # X axis
-    pos.x += vel.x * dt
-    r = rect(pos, size)
-    for s in solids:
-        if r.colliderect(s):
-            if vel.x > 0:
-                r.right = s.left
-            elif vel.x < 0:
-                r.left = s.right
-            vel.x = 0
-            pos.x = r.x
+# ---------------- OBJECTS ----------------
 
-    # Y axis
-    pos.y += vel.y * dt
-    r = rect(pos, size)
-    for s in solids:
-        if r.colliderect(s):
-            if vel.y > 0:
-                r.bottom = s.top
-                grounded = True
-            elif vel.y < 0:
-                r.top = s.bottom
-            vel.y = 0
-            pos.y = r.y
+class Platform:
+    def __init__(self, x, y, w, h):
+        self.rect = pygame.Rect(x, y, w, h)
 
-    return grounded
+    def draw(self):
+        pygame.draw.rect(SCREEN, STONE, self.rect)
 
-def resolve_players(p1, p2):
-    r1 = p1.rect()
-    r2 = p2.rect()
+class MovingPlatform(Platform):
+    def __init__(self, x, y, w, h, start, end):
+        super().__init__(x, y, w, h)
+        self.start = start
+        self.end = end
+        self.dir = 1
 
-    if not r1.colliderect(r2):
-        return
+    def update(self):
+        self.rect.x += self.dir * 2
+        if self.rect.x < self.start or self.rect.x > self.end:
+            self.dir *= -1
 
-    # Compute overlaps
-    dx = min(r1.right - r2.left, r2.right - r1.left)
-    dy = min(r1.bottom - r2.top, r2.bottom - r1.top)
+class CollapsingPlatform(Platform):
+    def __init__(self, x, y):
+        super().__init__(x, y, 100, 20)
+        self.timer = 60
+        self.active = True
 
-    # Prefer vertical resolution if falling
-    if p1.vel.y > 0 and dy < dx:
-        # p1 lands on p2
-        p1.pos.y -= (r1.bottom - r2.top)
-        p1.vel.y = 0
-        p1.grounded = True
-    elif p2.vel.y > 0 and dy < dx:
-        # p2 lands on p1
-        p2.pos.y -= (r2.bottom - r1.top)
-        p2.vel.y = 0
-        p2.grounded = True
-    else:
-        # Horizontal push apart (split evenly)
-        push = dx / 2
-        if r1.centerx < r2.centerx:
-            p1.pos.x -= push
-            p2.pos.x += push
-        else:
-            p1.pos.x += push
-            p2.pos.x -= push
-        p1.vel.x = 0
-        p2.vel.x = 0
+    def update(self, entity):
+        if self.active and self.rect.colliderect(entity.rect):
+            self.timer -= 1
+            if self.timer <= 0:
+                self.active = False
 
-    # Clamp to world bounds (prevents disappearing)
-    p1.pos.x = clamp(p1.pos.x, 0, WIDTH - p1.size.x)
-    p2.pos.x = clamp(p2.pos.x, 0, WIDTH - p2.size.x)
-    p1.pos.y = clamp(p1.pos.y, 0, HEIGHT - p1.size.y)
-    p2.pos.y = clamp(p2.pos.y, 0, HEIGHT - p2.size.y)
+    def draw(self):
+        if self.active:
+            alpha = int(255 * (self.timer / 60))
+            pygame.draw.rect(SCREEN, (140, 100, 100), self.rect)
+            pygame.draw.rect(SCREEN, (200, 150, 150), self.rect, 2)
 
-# ================= ENTITIES =================
+class Door:
+    def __init__(self, x, y, h):
+        self.rect = pygame.Rect(x, y, 40, h)
+        self.open = False
+
+    def draw(self):
+        if not self.open:
+            pygame.draw.rect(SCREEN, DOOR, self.rect)
+            pygame.draw.rect(SCREEN, (100, 200, 255), self.rect, 2)
+
+class PressurePlate:
+    def __init__(self, x, y, door):
+        self.rect = pygame.Rect(x, y, 40, 10)
+        self.door = door
+
+    def update(self, entities):
+        self.door.open = any(e.rect.colliderect(self.rect) for e in entities)
+
+    def draw(self):
+        color = (200, 100, 100) if self.door.open else PLATE
+        pygame.draw.rect(SCREEN, color, self.rect)
+
+class HeavyBlock:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 80, 60)
+        self.vel = pygame.Vector2(0, 0)
+
+    def update(self, platforms):
+        self.vel.y += GRAVITY
+        self.rect.y += int(self.vel.y)
+        resolve_collision(self, platforms)
+
+    def draw(self):
+        pygame.draw.rect(SCREEN, (140, 130, 120), self.rect)
+        pygame.draw.rect(SCREEN, (180, 170, 160), self.rect, 2)
+
+class Spike:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 40, 30)
+
+    def draw(self):
+        pygame.draw.polygon(SCREEN, SPIKE, 
+            [(self.rect.centerx, self.rect.top), (self.rect.right, self.rect.bottom), (self.rect.left, self.rect.bottom)])
+
+class Collectible:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 15, 15)
+        self.collected = False
+
+    def draw(self):
+        if not self.collected:
+            pygame.draw.circle(SCREEN, COIN, self.rect.center, 8)
+            pygame.draw.circle(SCREEN, (200, 170, 0), self.rect.center, 8, 2)
+
+# ---------------- PLAYER ----------------
+
 class Player:
-    def __init__(self, x, y, color, controls):
-        self.pos = pygame.Vector2(x, y)
-        self.vel = pygame.Vector2()
-        self.size = pygame.Vector2(32, 52)
-        self.color = color
+    def __init__(self, x, y, controls, color):
+        self.rect = pygame.Rect(x, y, 40, 60)
+        self.vel = pygame.Vector2(0, 0)
         self.controls = controls
-        self.grounded = False
-        self.enabled = True
+        self.color = color
+        self.on_ground = False
+        self.spawn_x, self.spawn_y = x, y
 
-    def rect(self):
-        return rect(self.pos, self.size)
+    def input(self, keys):
+        self.vel.x = 0
+        if keys[self.controls["left"]]:
+            self.vel.x = -4
+        if keys[self.controls["right"]]:
+            self.vel.x = 4
+        if keys[self.controls["jump"]] and self.on_ground:
+            self.vel.y = -13
 
-class Merged:
+    def update(self):
+        self.vel.y += GRAVITY
+        self.rect.x += int(self.vel.x)
+        self.rect.y += int(self.vel.y)
+        check_bounds(self)
+
+    def draw(self):
+        pygame.draw.rect(SCREEN, self.color, self.rect)
+        pygame.draw.rect(SCREEN, (255, 255, 255), self.rect, 2)
+
+    def reset(self):
+        self.rect.x, self.rect.y = self.spawn_x, self.spawn_y
+        self.vel = pygame.Vector2(0, 0)
+
+class MergedPlayer(Player):
     def __init__(self, p1, p2):
-        self.pos = (p1.pos + p2.pos) / 2
-        self.vel = pygame.Vector2()
-        self.size = pygame.Vector2(56, 80)
-        self.grounded = False
+        super().__init__(p1.rect.x, p1.rect.y, None, (180, 100, 255))
+        self.rect.size = (60, 100)
+        self.vel = pygame.Vector2(0, 0)
+        self.spawn_x, self.spawn_y = p1.rect.x, p1.rect.y
 
-    def rect(self):
-        return rect(self.pos, self.size)
+    def input(self, keys):
+        self.vel.x = 0
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            self.vel.x = -3
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            self.vel.x = 3
+        if (keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_ground:
+            self.vel.y = -17
 
-# ================= LEVEL =================
-def build_level():
-    solids = [
-        pygame.Rect(0, HEIGHT-40, WIDTH, 40),
-        pygame.Rect(-40, 0, 40, HEIGHT),
-        pygame.Rect(WIDTH, 0, 40, HEIGHT),
+# ---------------- LEVEL ----------------
 
-        pygame.Rect(80, 560, 220, 20),
-        pygame.Rect(360, 520, 200, 20),
-        pygame.Rect(640, 560, 220, 20),
+platforms = [
+    Platform(0, 560, 1000, 40),
+    Platform(200, 480, 150, 20),
+    Platform(400, 420, 150, 20),
+]
 
-        pygame.Rect(0, 480, 420, 20),
-        pygame.Rect(520, 440, 420, 20),
+moving_platform = MovingPlatform(600, 350, 120, 20, 550, 750)
+collapsing = CollapsingPlatform(350, 300)
 
-        pygame.Rect(160, 440, 120, 20),
-        pygame.Rect(160, 320, 120, 20),
+door = Door(850, 360, 200)
+plate1 = PressurePlate(250, 460, door)
+plate2 = PressurePlate(700, 330, door)
 
-        pygame.Rect(760, 440, 120, 20),
-        pygame.Rect(760, 320, 120, 20),
+heavy_block = HeavyBlock(500, 500)
 
-        pygame.Rect(460, 260, 260, 20),
-        pygame.Rect(460, 180, 260, 20),
-        pygame.Rect(460, 90, 260, 20),
+spikes = [
+    Spike(300, 540),
+    Spike(750, 540),
+]
 
-        pygame.Rect(900, 160, 160, 20),
-        pygame.Rect(960, 60, 40, 100),
-    ]
+coins = [
+    Collectible(150, 450),
+    Collectible(350, 380),
+    Collectible(650, 300),
+]
 
-    goal = pygame.Rect(980, 20, 80, 60)
-    return solids, goal
+goal = pygame.Rect(900, 500, 50, 60)
 
-def reset():
-    solids, goal = build_level()
-    p1 = Player(100, HEIGHT-92, (90,180,255),
-                {"L":pygame.K_a,"R":pygame.K_d,"J":pygame.K_w})
-    p2 = Player(760, HEIGHT-92, (255,160,90),
-                {"L":pygame.K_LEFT,"R":pygame.K_RIGHT,"J":pygame.K_UP})
-    return solids, goal, p1, p2, None, False
+p1 = Player(50, 500, {"left":pygame.K_a,"right":pygame.K_d,"jump":pygame.K_w}, (80,200,255))
+p2 = Player(100, 500, {"left":pygame.K_LEFT,"right":pygame.K_RIGHT,"jump":pygame.K_UP}, (255,80,120))
 
-solids, goal, p1, p2, merged, win = reset()
+merged = None
+door_platforms_added = False
 
-MERGE_DIST = 60
+# ---------------- LOOP ----------------
 
-def close(p1, p2):
-    return p1.pos.distance_to(p2.pos) < MERGE_DIST
+def draw_ui():
+    font_small = pygame.font.SysFont(None, 36)
+    font_large = pygame.font.SysFont(None, 60)
+    
+    score_text = font_small.render(f"Score: {score}", True, (255, 255, 255))
+    level_text = font_small.render(f"Level: {level}", True, (255, 255, 255))
+    
+    SCREEN.blit(score_text, (10, 10))
+    SCREEN.blit(level_text, (10, 50))
+    
+    if paused:
+        pause_text = font_large.render("PAUSED", True, (255, 100, 100))
+        SCREEN.blit(pause_text, (350, 250))
 
-# ================= MAIN LOOP =================
-running = True
-while running:
-    dt = clock.tick(FPS) / 1000
+while True:
+    CLOCK.tick(60)
     keys = pygame.key.get_pressed()
 
     for e in pygame.event.get():
         if e.type == pygame.QUIT:
-            running = False
+            pygame.quit(); sys.exit()
         if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_p:
+                paused = not paused
+            if e.key == pygame.K_SPACE and not paused:
+                if merged:
+                    p1.rect.topleft = merged.rect.topleft
+                    p2.rect.midleft = merged.rect.midright
+                    merged = None
+                else:
+                    if p1.rect.colliderect(p2.rect):
+                        merged = MergedPlayer(p1, p2)
             if e.key == pygame.K_r:
-                solids, goal, p1, p2, merged, win = reset()
-            if e.key == pygame.K_e and merged is None and close(p1, p2):
-                merged = Merged(p1, p2)
-                p1.enabled = p2.enabled = False
-            if e.key == pygame.K_q and merged:
-                p1.pos = merged.pos + (-40, 28)
-                p2.pos = merged.pos + (40, 28)
-                p1.vel = p2.vel = merged.vel * 0.5
-                p1.enabled = p2.enabled = True
+                p1.reset()
+                p2.reset()
                 merged = None
+                score = max(0, score - 50)
 
-    if not win:
-        if merged is None:
-            for p in (p1, p2):
-                if not p.enabled:
-                    continue
+    if not paused:
+        SCREEN.fill(BG)
 
-                if keys[p.controls["L"]]:
-                    p.vel.x -= 1700 * dt
-                if keys[p.controls["R"]]:
-                    p.vel.x += 1700 * dt
+        for x in range(0, WIDTH, 200):
+            pygame.draw.circle(SCREEN, TORCH, (x+40, 520), 6)
 
-                p.vel.x *= FRICTION
-                p.vel.y += GRAVITY * dt
+        entities = [merged] if merged else [p1, p2]
 
-                if keys[p.controls["J"]] and p.grounded:
-                    p.vel.y = SOLO_JUMP
-
-                p.vel.x = clamp(p.vel.x, -420, 420)
-                p.vel.y = clamp(p.vel.y, -4500, 4500)
-
-                p.grounded = move_and_collide(p.pos, p.vel, p.size, solids, dt)
-
-            # Single, symmetric player collision
-            resolve_players(p1, p2)
-
+        if merged:
+            merged.input(keys)
+            merged.update()
+            resolve_collision(merged, platforms + [moving_platform])
+            if merged.rect.colliderect(heavy_block.rect):
+                heavy_block.rect.x += int(merged.vel.x) * 2
+            merged.draw()
         else:
-            left = keys[p1.controls["L"]] or keys[p2.controls["L"]]
-            right = keys[p1.controls["R"]] or keys[p2.controls["R"]]
-            jump = keys[p1.controls["J"]] or keys[p2.controls["J"]]
+            for p in (p1, p2):
+                p.input(keys)
+                p.update()
+                resolve_collision(p, platforms + [moving_platform])
+                p.draw()
 
-            if left:
-                merged.vel.x -= 2100 * dt
-            if right:
-                merged.vel.x += 2100 * dt
+        moving_platform.update()
+        collapsing.update(merged if merged else p1)
+        heavy_block.update(platforms + [moving_platform])
 
-            merged.vel.x *= FRICTION
-            merged.vel.y += GRAVITY * dt
+        plate1.update(entities)
+        plate2.update(entities)
 
-            if jump and merged.grounded:
-                merged.vel.y = MERGED_JUMP
+        if not door_platforms_added and not door.open:
+            platforms.append(Platform(door.rect.x, door.rect.y, door.rect.w, door.rect.h))
+            door_platforms_added = True
+        elif door_platforms_added and door.open:
+            platforms = [p for p in platforms if not (p.rect.x == door.rect.x and p.rect.y == door.rect.y)]
+            door_platforms_added = False
 
-            merged.vel.x = clamp(merged.vel.x, -520, 520)
-            merged.vel.y = clamp(merged.vel.y, -5000, 5000)
+        for p in platforms:
+            p.draw()
 
-            merged.grounded = move_and_collide(
-                merged.pos, merged.vel, merged.size, solids, dt
-            )
+        moving_platform.draw()
+        collapsing.draw()
+        heavy_block.draw()
+        plate1.draw()
+        plate2.draw()
+        door.draw()
 
-            if merged.rect().colliderect(goal):
-                win = True
+        for spike in spikes:
+            spike.draw()
+            for e in entities:
+                if e.rect.colliderect(spike.rect):
+                    if not merged:
+                        p1.reset()
+                        p2.reset()
+                    score = max(0, score - 25)
 
-        if merged is None and p1.rect().colliderect(goal) and p2.rect().colliderect(goal):
-            win = True
+        for coin in coins:
+            coin.draw()
+            for e in entities:
+                if not coin.collected and e.rect.colliderect(coin.rect):
+                    coin.collected = True
+                    score += 50
 
-    # ================= DRAW =================
-    screen.fill((14, 14, 20))
-    for s in solids:
-        pygame.draw.rect(screen, (75,77,85), s)
+        pygame.draw.rect(SCREEN, (100,255,140), goal)
+        pygame.draw.rect(SCREEN, (50,200,100), goal, 3)
 
-    pygame.draw.rect(screen, (120,230,170), goal)
-
-    if merged:
-        pygame.draw.rect(screen, (235,235,255), merged.rect())
+        if not merged and p1.rect.colliderect(goal) and p2.rect.colliderect(goal):
+            font = pygame.font.SysFont(None, 60)
+            SCREEN.blit(font.render("DUNGEON CLEARED", True, (255,255,255)), (320, 250))
     else:
-        pygame.draw.rect(screen, p1.color, p1.rect())
-        pygame.draw.rect(screen, p2.color, p2.rect())
+        SCREEN.fill(BG)
 
-    screen.blit(font.render("Solid players • Partial stacking • No phasing", True, (200,200,200)), (20, 20))
+    draw_ui()
     pygame.display.flip()
-
-pygame.quit()
