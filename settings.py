@@ -23,6 +23,9 @@ MERGE_COOLDOWN_SEC = 0.20
 BLOCK_FRICTION = 0.86
 BLOCK_MAX_SPEED = 7.5
 
+# Death
+KILL_Y = 1200   # Falling below this kills the player
+
 # Colors
 BG = (15, 15, 22)
 STONE = (70, 70, 80)

@@ -18,6 +18,10 @@ def hit_spikes(actor, spikes):
     return any(actor.rect.colliderect(s.rect) for s in spikes)
 
 
+def fell_out_of_world(actor):
+    return actor.rect.top > KILL_Y
+
+
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
@@ -37,6 +41,9 @@ merged = None
 merge_cooldown = 0.0
 t = 0.0
 running = True
+
+RESPAWN_P1 = (120, 100)
+RESPAWN_P2 = (200, 100)
 
 while running:
     dt = clock.tick(FPS) / 1000.0
@@ -72,16 +79,26 @@ while running:
     active = [merged] if merged else [player1, player2]
     level.update(dt, active)
 
-    # Death check
+    # ---- DEATH CHECKS ----
+    died = False
     if merged:
-        if hit_spikes(merged, level.spikes):
+        if hit_spikes(merged, level.spikes) or fell_out_of_world(merged):
+            died = True
             merged = None
-            player1.rect.topleft = (120, 100)
-            player2.rect.topleft = (200, 100)
     else:
-        if hit_spikes(player1, level.spikes) or hit_spikes(player2, level.spikes):
-            player1.rect.topleft = (120, 100)
-            player2.rect.topleft = (200, 100)
+        if (
+            hit_spikes(player1, level.spikes)
+            or hit_spikes(player2, level.spikes)
+            or fell_out_of_world(player1)
+            or fell_out_of_world(player2)
+        ):
+            died = True
+
+    if died:
+        player1.rect.topleft = RESPAWN_P1
+        player2.rect.topleft = RESPAWN_P2
+        player1.vel.xy = (0, 0)
+        player2.vel.xy = (0, 0)
 
     for e in effects[:]:
         e.update(dt)

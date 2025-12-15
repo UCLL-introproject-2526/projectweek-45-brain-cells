@@ -1,6 +1,7 @@
 import pygame
 from core.entity import Entity
 
+
 class Switch(Entity):
     """
     On when a player or block is standing on it.
@@ -13,8 +14,12 @@ class Switch(Entity):
     def update(self, dt, actors):
         self.on = False
         for a in actors:
-            # require feet overlap
-            feet = pygame.Rect(a.rect.left + 6, a.rect.bottom - 4, a.rect.width - 12, 6)
+            feet = pygame.Rect(
+                a.rect.left + 6,
+                a.rect.bottom - 4,
+                a.rect.width - 12,
+                6
+            )
             if feet.colliderect(self.rect):
                 self.on = True
                 break
@@ -29,18 +34,26 @@ class Switch(Entity):
 class Door(Entity):
     """
     Solid when closed; non-solid when open.
+    Has a cooldown so it doesn't snap shut immediately.
     """
-    def __init__(self, x, y, w=48, h=96, requires=None):
+    def __init__(self, x, y, w=48, h=96, requires=None, cooldown=1.5):
         super().__init__(x, y, w, h)
+        self.requires = requires or []
+        self.cooldown = cooldown
+        self.timer = 0.0
         self.open = False
-        self.requires = requires or []  # list of Switch objects
 
     @property
     def solid(self):
         return not self.open
 
     def update(self, dt):
-        self.open = all(s.on for s in self.requires)
+        if all(s.on for s in self.requires):
+            self.timer = self.cooldown
+        else:
+            self.timer = max(0.0, self.timer - dt)
+
+        self.open = self.timer > 0.0
 
     def draw(self, surface, camera_offset=(0, 0)):
         r = self.rect.move(-camera_offset[0], -camera_offset[1])
@@ -58,4 +71,10 @@ class Goal(Entity):
     def draw(self, surface, camera_offset=(0, 0)):
         r = self.rect.move(-camera_offset[0], -camera_offset[1])
         pygame.draw.rect(surface, (220, 220, 255), r, 2)
-        pygame.draw.line(surface, (220, 220, 255), (r.centerx, r.top), (r.centerx, r.bottom), 2)
+        pygame.draw.line(
+            surface,
+            (220, 220, 255),
+            (r.centerx, r.top),
+            (r.centerx, r.bottom),
+            2
+        )
