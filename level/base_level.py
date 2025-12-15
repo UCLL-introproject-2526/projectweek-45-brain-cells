@@ -1,0 +1,124 @@
+import pygame
+import random
+import math
+from settings import TILE_SIZE
+
+class Torch:
+    def __init__(self, x, y):
+        self.pos = pygame.Vector2(x, y)
+        self.phase = random.random() * 10
+
+    def draw(self, surface, camera_offset, t):
+        ox, oy = camera_offset
+        x, y = int(self.pos.x - ox), int(self.pos.y - oy)
+
+        pygame.draw.rect(surface, (60, 45, 30), pygame.Rect(x - 3, y, 6, 16))
+
+        flick = 0.6 + 0.4 * (0.5 + 0.5 * math.sin((t + self.phase) * 6.0))
+        radius = int(50 * flick)
+
+        glow = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 170, 60, 70), (radius, radius), radius)
+        pygame.draw.circle(glow, (255, 200, 80, 85), (radius, radius), int(radius * 0.55))
+        surface.blit(glow, (x - radius, y - radius))
+
+        pygame.draw.circle(surface, (255, 170, 60), (x, y - 2), 4)
+        pygame.draw.circle(surface, (255, 220, 120), (x, y - 3), 2
+
+
+        )
+
+class BaseLevel:
+    def __init__(self):
+        self.tiles = []
+        self.blocks = []
+        self.switches = []
+        self.doors = []
+        self.spikes = []
+        self.torches = []
+        self.checkpoints = []
+        self.goal = None
+
+        self.spawn_p1 = (120, 100)
+        self.spawn_p2 = (200, 100)
+
+        # current respawn (changes with checkpoints)
+        self.respawn_p1 = self.spawn_p1
+        self.respawn_p2 = self.spawn_p2
+
+        self.build()
+
+        # make sure respawns start as spawns
+        self.respawn_p1 = self.spawn_p1
+        self.respawn_p2 = self.spawn_p2
+
+    def build(self):
+        raise NotImplementedError
+
+    def solids(self):
+        solids = list(self.tiles)
+        solids += [d for d in self.doors if d.solid]
+        solids += self.blocks
+        return solids
+
+    def actors_for_switches(self, actors):
+        return list(actors) + list(self.blocks)
+
+    def update(self, dt, actors):
+        base_solids = list(self.tiles) + [d for d in self.doors if d.solid]
+
+        for b in self.blocks:
+            b.update(dt, base_solids)
+
+        for s in self.switches:
+            s.update(dt, self.actors_for_switches(actors))
+
+        for d in self.doors:
+            d.update(dt)
+
+    def update_checkpoints(self, player1, player2):
+        """
+        Activate checkpoint when either player touches it.
+        Sets respawn points for both players (co-op checkpoint).
+        """
+        for cp in self.checkpoints:
+            if cp.activated:
+                continue
+            if player1.rect.colliderect(cp.rect) or player2.rect.colliderect(cp.rect):
+                cp.activated = True
+                # respawn both near checkpoint (slight offset)
+                self.respawn_p1 = (cp.rect.x - 60, cp.rect.y - 40)
+                self.respawn_p2 = (cp.rect.x + 60, cp.rect.y - 40)
+                break
+
+    def draw_background(self, surface, camera_offset, t):
+        surface.fill((12, 12, 18))
+        ox, oy = camera_offset
+
+        for by in range(14):
+            for bx in range(30):
+                x = bx * TILE_SIZE - (ox % TILE_SIZE)
+                y = by * TILE_SIZE - (oy % TILE_SIZE)
+                r = pygame.Rect(x, y, TILE_SIZE, TILE_SIZE)
+                col = (20, 20, 28) if (bx + by) % 2 == 0 else (24, 24, 33)
+                pygame.draw.rect(surface, col, r)
+                pygame.draw.rect(surface, (10, 10, 14), r, 1)
+
+        for torch in self.torches:
+            torch.draw(surface, camera_offset, t)
+
+    def draw(self, surface, camera_offset):
+        for tile in self.tiles:
+            tile.draw(surface, camera_offset)
+        for s in self.switches:
+            s.draw(surface, camera_offset)
+        for d in self.doors:
+            d.draw(surface, camera_offset)
+        for b in self.blocks:
+            b.draw(surface, camera_offset)
+        for sp in self.spikes:
+            sp.draw(surface, camera_offset)
+        for cp in self.checkpoints:
+            cp.draw(surface, camera_offset)
+        if self.goal:
+            self.goal.draw(surface, camera_offset)
