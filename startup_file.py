@@ -2,27 +2,29 @@ import pygame
 
 pygame.init()
 
-# ---------------- CONFIG ----------------
+# ================= CONFIG =================
 WIDTH, HEIGHT = 1200, 700
 FPS = 60
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Puzzle Dungeon – Stable Physics")
+pygame.display.set_caption("Puzzle Dungeon – Stable Player Collision")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 24)
 
-GRAVITY = 2800
-FRICTION = 0.80
-TILE = 40
+GRAVITY = 3000
+FRICTION = 0.82
 
-# ---------------- HELPERS ----------------
+SOLO_JUMP = -720
+MERGED_JUMP = -1150
+
+# ================= HELPERS =================
 def clamp(v, a, b):
     return max(a, min(b, v))
 
 def rect(pos, size):
     return pygame.Rect(int(pos.x), int(pos.y), int(size.x), int(size.y))
 
-# ---------------- PHYSICS ----------------
+# ================= PHYSICS =================
 def move_and_collide(pos, vel, size, solids, dt):
     grounded = False
 
@@ -53,7 +55,47 @@ def move_and_collide(pos, vel, size, solids, dt):
 
     return grounded
 
-# ---------------- ENTITIES ----------------
+def resolve_players(p1, p2):
+    r1 = p1.rect()
+    r2 = p2.rect()
+
+    if not r1.colliderect(r2):
+        return
+
+    # Compute overlaps
+    dx = min(r1.right - r2.left, r2.right - r1.left)
+    dy = min(r1.bottom - r2.top, r2.bottom - r1.top)
+
+    # Prefer vertical resolution if falling
+    if p1.vel.y > 0 and dy < dx:
+        # p1 lands on p2
+        p1.pos.y -= (r1.bottom - r2.top)
+        p1.vel.y = 0
+        p1.grounded = True
+    elif p2.vel.y > 0 and dy < dx:
+        # p2 lands on p1
+        p2.pos.y -= (r2.bottom - r1.top)
+        p2.vel.y = 0
+        p2.grounded = True
+    else:
+        # Horizontal push apart (split evenly)
+        push = dx / 2
+        if r1.centerx < r2.centerx:
+            p1.pos.x -= push
+            p2.pos.x += push
+        else:
+            p1.pos.x += push
+            p2.pos.x -= push
+        p1.vel.x = 0
+        p2.vel.x = 0
+
+    # Clamp to world bounds (prevents disappearing)
+    p1.pos.x = clamp(p1.pos.x, 0, WIDTH - p1.size.x)
+    p2.pos.x = clamp(p2.pos.x, 0, WIDTH - p2.size.x)
+    p1.pos.y = clamp(p1.pos.y, 0, HEIGHT - p1.size.y)
+    p2.pos.y = clamp(p2.pos.y, 0, HEIGHT - p2.size.y)
+
+# ================= ENTITIES =================
 class Player:
     def __init__(self, x, y, color, controls):
         self.pos = pygame.Vector2(x, y)
@@ -71,58 +113,48 @@ class Merged:
     def __init__(self, p1, p2):
         self.pos = (p1.pos + p2.pos) / 2
         self.vel = pygame.Vector2()
-        self.size = pygame.Vector2(52, 78)
+        self.size = pygame.Vector2(56, 80)
         self.grounded = False
 
     def rect(self):
         return rect(self.pos, self.size)
 
-# ---------------- LEVEL ----------------
+# ================= LEVEL =================
 def build_level():
-    solids = []
+    solids = [
+        pygame.Rect(0, HEIGHT-40, WIDTH, 40),
+        pygame.Rect(-40, 0, 40, HEIGHT),
+        pygame.Rect(WIDTH, 0, 40, HEIGHT),
 
-    # floor
-    solids.append(pygame.Rect(0, HEIGHT-40, WIDTH, 40))
+        pygame.Rect(80, 560, 220, 20),
+        pygame.Rect(360, 520, 200, 20),
+        pygame.Rect(640, 560, 220, 20),
 
-    # walls
-    solids.append(pygame.Rect(-40, 0, 40, HEIGHT))
-    solids.append(pygame.Rect(WIDTH, 0, 40, HEIGHT))
+        pygame.Rect(0, 480, 420, 20),
+        pygame.Rect(520, 440, 420, 20),
 
-    # ---- Dungeon layout ----
-    # Lower rooms
-    solids += [
-        pygame.Rect(80, 560, 240, 20),
-        pygame.Rect(380, 520, 200, 20),
-        pygame.Rect(660, 560, 260, 20),
+        pygame.Rect(160, 440, 120, 20),
+        pygame.Rect(160, 320, 120, 20),
+
+        pygame.Rect(760, 440, 120, 20),
+        pygame.Rect(760, 320, 120, 20),
+
+        pygame.Rect(460, 260, 260, 20),
+        pygame.Rect(460, 180, 260, 20),
+        pygame.Rect(460, 90, 260, 20),
+
+        pygame.Rect(900, 160, 160, 20),
+        pygame.Rect(960, 60, 40, 100),
     ]
 
-    # Vertical shaft left
-    solids += [
-        pygame.Rect(120, 440, 160, 20),
-        pygame.Rect(120, 320, 160, 20),
-        pygame.Rect(120, 200, 160, 20),
-    ]
-
-    # Upper merge-only path
-    solids += [
-        pygame.Rect(420, 260, 220, 20),
-        pygame.Rect(720, 220, 220, 20),
-    ]
-
-    # Narrow solo tunnel (forces split)
-    solids += [
-        pygame.Rect(960, 500, 160, 20),
-        pygame.Rect(1020, 360, 40, 160),
-    ]
-
-    goal = pygame.Rect(1040, 260, 80, 100)
+    goal = pygame.Rect(980, 20, 80, 60)
     return solids, goal
 
 def reset():
     solids, goal = build_level()
     p1 = Player(100, HEIGHT-92, (90,180,255),
                 {"L":pygame.K_a,"R":pygame.K_d,"J":pygame.K_w})
-    p2 = Player(720, HEIGHT-92, (255,160,90),
+    p2 = Player(760, HEIGHT-92, (255,160,90),
                 {"L":pygame.K_LEFT,"R":pygame.K_RIGHT,"J":pygame.K_UP})
     return solids, goal, p1, p2, None, False
 
@@ -133,7 +165,7 @@ MERGE_DIST = 60
 def close(p1, p2):
     return p1.pos.distance_to(p2.pos) < MERGE_DIST
 
-# ---------------- MAIN LOOP ----------------
+# ================= MAIN LOOP =================
 running = True
 while running:
     dt = clock.tick(FPS) / 1000
@@ -149,8 +181,8 @@ while running:
                 merged = Merged(p1, p2)
                 p1.enabled = p2.enabled = False
             if e.key == pygame.K_q and merged:
-                p1.pos = merged.pos + (-36, 26)
-                p2.pos = merged.pos + (36, 26)
+                p1.pos = merged.pos + (-40, 28)
+                p2.pos = merged.pos + (40, 28)
                 p1.vel = p2.vel = merged.vel * 0.5
                 p1.enabled = p2.enabled = True
                 merged = None
@@ -170,12 +202,15 @@ while running:
                 p.vel.y += GRAVITY * dt
 
                 if keys[p.controls["J"]] and p.grounded:
-                    p.vel.y = -1000
+                    p.vel.y = SOLO_JUMP
 
                 p.vel.x = clamp(p.vel.x, -420, 420)
-                p.vel.y = clamp(p.vel.y, -2600, 2600)
+                p.vel.y = clamp(p.vel.y, -4500, 4500)
 
                 p.grounded = move_and_collide(p.pos, p.vel, p.size, solids, dt)
+
+            # Single, symmetric player collision
+            resolve_players(p1, p2)
 
         else:
             left = keys[p1.controls["L"]] or keys[p2.controls["L"]]
@@ -191,10 +226,10 @@ while running:
             merged.vel.y += GRAVITY * dt
 
             if jump and merged.grounded:
-                merged.vel.y = -1350
+                merged.vel.y = MERGED_JUMP
 
             merged.vel.x = clamp(merged.vel.x, -520, 520)
-            merged.vel.y = clamp(merged.vel.y, -3000, 3000)
+            merged.vel.y = clamp(merged.vel.y, -5000, 5000)
 
             merged.grounded = move_and_collide(
                 merged.pos, merged.vel, merged.size, solids, dt
@@ -206,10 +241,10 @@ while running:
         if merged is None and p1.rect().colliderect(goal) and p2.rect().colliderect(goal):
             win = True
 
-    # ---------------- DRAW ----------------
-    screen.fill((16, 16, 22))
+    # ================= DRAW =================
+    screen.fill((14, 14, 20))
     for s in solids:
-        pygame.draw.rect(screen, (70,72,80), s)
+        pygame.draw.rect(screen, (75,77,85), s)
 
     pygame.draw.rect(screen, (120,230,170), goal)
 
@@ -219,12 +254,7 @@ while running:
         pygame.draw.rect(screen, p1.color, p1.rect())
         pygame.draw.rect(screen, p2.color, p2.rect())
 
-    if win:
-        screen.blit(font.render("YOU ESCAPED THE DUNGEON!  (R to restart)", True, (255,255,255)), (380, 40))
-    else:
-        msg = "E merge | Q split | Reach the goal together"
-        screen.blit(font.render(msg, True, (200,200,200)), (20, 20))
-
+    screen.blit(font.render("Solid players • Partial stacking • No phasing", True, (200,200,200)), (20, 20))
     pygame.display.flip()
 
 pygame.quit()
