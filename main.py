@@ -44,6 +44,7 @@ def hit_spikes(actor, spikes):
 def hit_cannonballs(actor, balls):
     return any(actor.rect.colliderect(b.rect) for b in balls)
 
+
 def hit_goblins(actor, goblins):
     return any(actor.rect.colliderect(g.rect) for g in goblins)
 
@@ -89,6 +90,17 @@ def resolve_spawn_collision(rect, solids, max_iters=8):
 
 
 # -----------------------------
+# SPLITSCREEN HELPERS
+# -----------------------------
+SPLIT_DISTANCE = SCREEN_WIDTH * 0.75  # tweak if needed
+
+
+def should_split(p1, p2):
+    # Only consider horizontal separation (platformer-friendly)
+    return abs(p1.rect.centerx - p2.rect.centerx) > SPLIT_DISTANCE
+
+
+# -----------------------------
 # INIT
 # -----------------------------
 pygame.init()
@@ -101,9 +113,18 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 36)
 
 camera = Camera()
+# extra cameras for split
+camera_left = Camera()
+camera_right = Camera()
+
 settings_menu = SettingsMenu(font)
 level_menu = LevelSelectMenu(font)
 effects = []
+
+# split render surfaces
+half_w = SCREEN_WIDTH // 2
+left_surface = pygame.Surface((half_w, SCREEN_HEIGHT))
+right_surface = pygame.Surface((half_w, SCREEN_HEIGHT))
 
 # SAVE DATA
 save_data = load_save()
@@ -178,6 +199,7 @@ while running:
         settings_menu.visible = False
     level_key_prev = keys[pygame.K_l]
 
+    # Default (single cam) update used for menus and normal mode
     camera.update([merged.rect] if merged else [player1.rect, player2.rect])
     cam = camera.offset()
 
@@ -309,7 +331,6 @@ while running:
         ):
             died = True
 
-
     if died:
         player1.rect.topleft = level.respawn_p1
         player2.rect.topleft = level.respawn_p2
@@ -339,14 +360,54 @@ while running:
             effects.remove(e)
 
     # -------------------------
-    # DRAW
+    # DRAW (AUTO SPLITSCREEN)
     # -------------------------
-    level.draw_background(screen, cam, t)
-    level.draw(screen, cam)
-    draw_actors(screen, cam)
+    split = (merged is None) and should_split(player1, player2)
 
-    for e in effects:
-        e.draw(screen, cam)
+    if split:
+        # LEFT VIEW (player1)
+        camera_left.follow_single(player1.rect, half_w, SCREEN_HEIGHT)
+        cam_l = camera_left.offset()
+
+
+        left_surface.fill((0, 0, 0))
+        level.draw_background(left_surface, cam_l, t)
+        level.draw(left_surface, cam_l)
+        player1.draw(left_surface, cam_l)
+
+        # RIGHT VIEW (player2)
+        camera_right.follow_single(player2.rect, half_w, SCREEN_HEIGHT)
+        cam_r = camera_right.offset()
+
+
+        right_surface.fill((0, 0, 0))
+        level.draw_background(right_surface, cam_r, t)
+        level.draw(right_surface, cam_r)
+        player2.draw(right_surface, cam_r)
+
+        # effects: draw in both views so they still show up
+        for e in effects:
+            e.draw(left_surface, cam_l)
+            e.draw(right_surface, cam_r)
+
+        # combine
+        screen.blit(left_surface, (0, 0))
+        screen.blit(right_surface, (half_w, 0))
+
+        # divider
+        pygame.draw.line(screen, (40, 40, 40), (half_w, 0), (half_w, SCREEN_HEIGHT), 2)
+
+    else:
+        # SINGLE CAMERA
+        camera.update([merged.rect] if merged else [player1.rect, player2.rect])
+        cam = camera.offset()
+
+        level.draw_background(screen, cam, t)
+        level.draw(screen, cam)
+        draw_actors(screen, cam)
+
+        for e in effects:
+            e.draw(screen, cam)
 
     pygame.display.flip()
 
