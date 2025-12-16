@@ -8,9 +8,30 @@ from level.cannon import Cannon
 from settings import TILE_SIZE
 from level.ground import Ground
 from level.wall import Wall
+import pygame
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class AsciiLevel(BaseLevel):
     map_data = []
+
+    def __init__(self):
+        super().__init__()
+        self.background = None
+    
+    def load_background(self, path):
+        img = pygame.image.load(path).convert()
+        world_w = len(self.map_data[0]) * TILE_SIZE
+        world_h = len(self.map_data) * TILE_SIZE
+        img = pygame.transform.scale(img, (world_w, world_h))
+        self.background = img
+    
+    def draw_background(self, screen, cam, t):
+        if self.background:
+            cam_x, cam_y = cam
+            factor = 0.3
+            screen.blit(self.background, (-cam_x * factor, -cam_y * factor))
+        else:
+            screen.fill((0, 0, 0))
 
     def build(self):
         if not self.map_data:
@@ -30,7 +51,7 @@ class AsciiLevel(BaseLevel):
                     self.blocks.append(PushBlock(wx, wy - TILE_SIZE))
 
                 elif ch == "S":
-                    self.spikes.append(Spike(wx, wy + TILE_SIZE - 24))
+                    self.spikes.append(Spike(wx, wy))
 
                 elif ch == "G":
                     self.goal = Goal(wx, wy)
