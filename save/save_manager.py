@@ -4,7 +4,7 @@ import os
 SAVE_FILE = "savegame.json"
 
 DEFAULT_DATA = {
-    "unlocked_levels": 1
+    "unlocked_levels": 2
 }
 
 def load_save():
