@@ -1,44 +1,22 @@
 import pygame
-from core.entity import Entity
-from settings import TILE_SIZE, GRAVITY
+from settings import GRAVITY, TILE_SIZE
 
-
-class Goblin(Entity):
-    def __init__(self, x, y, sprites, speed=1.4):
-        super().__init__(x, y, TILE_SIZE, TILE_SIZE)
+class Goblin:
+    def __init__(self, x, y, sprites):
+        self.rect = pygame.Rect(x, y, TILE_SIZE, TILE_SIZE)
+        self.vel = pygame.Vector2(0, 0)
         self.sprites = sprites
         self.frame = 0
-        self.anim_timer = 0.0
+        self.anim_timer = 0
 
-        self.vel = pygame.Vector2(speed, 0)
-        self.speed = speed
-        self.on_ground = False
+        self.speed = 1.4
         self.facing = 1  # 1 = right, -1 = left
 
     def update(self, dt, solids):
-        # gravity
+        # -------------------------
+        # GRAVITY
+        # -------------------------
         self.vel.y += GRAVITY
-
-        # -----------------
-        # horizontal
-        self.rect.x += int(self.vel.x)
-
-        hit_wall = False
-        for s in solids:
-            if self.rect.colliderect(s.rect):
-                if self.vel.x > 0:
-                    self.rect.right = s.rect.left
-                else:
-                    self.rect.left = s.rect.right
-                hit_wall = True
-
-        if hit_wall:
-            self.vel.x *= -1
-            self.facing *= -1
-
-        # -----------------
-        # vertical
-        self.on_ground = False
         self.rect.y += int(self.vel.y)
 
         for s in solids:
@@ -46,17 +24,45 @@ class Goblin(Entity):
                 if self.vel.y > 0:
                     self.rect.bottom = s.rect.top
                     self.vel.y = 0
-                    self.on_ground = True
-                elif self.vel.y < 0:
-                    self.rect.top = s.rect.bottom
-                    self.vel.y = 0
 
-        # -----------------
-        # animation
+        # -------------------------
+        # EDGE DETECTION
+        # -------------------------
+        foot_x = self.rect.centerx + self.facing * (self.rect.width // 2 + 2)
+        foot_y = self.rect.bottom + 2
+
+        ground_ahead = False
+        foot_rect = pygame.Rect(foot_x, foot_y, 2, 2)
+
+        for s in solids:
+            if foot_rect.colliderect(s.rect):
+                ground_ahead = True
+                break
+
+        if not ground_ahead:
+            self.facing *= -1
+
+        # -------------------------
+        # HORIZONTAL MOVE
+        # -------------------------
+        self.rect.x += int(self.speed * self.facing)
+
+        for s in solids:
+            if self.rect.colliderect(s.rect):
+                if self.facing > 0:
+                    self.rect.right = s.rect.left
+                else:
+                    self.rect.left = s.rect.right
+                self.facing *= -1
+
+        # -------------------------
+        # ANIMATION
+        # -------------------------
         self.anim_timer += dt
-        if self.anim_timer >= 0.15:
+        if self.anim_timer > 0.15:
             self.anim_timer = 0
             self.frame = (self.frame + 1) % len(self.sprites)
+
 
     def draw(self, surface, cam):
         img = self.sprites[self.frame]
