@@ -1,13 +1,28 @@
 import pygame
 from core.entity import Entity
+from settings import TILE_SIZE
+
 
 class Checkpoint(Entity):
-    def __init__(self, x, y, w=32, h=48):
-        super().__init__(x, y, w, h)
-        self.activated = False
+    def __init__(self, x, y):
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE)
+        self.active = False
 
-    def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        col = (90, 220, 140) if self.activated else (70, 120, 90)
-        pygame.draw.rect(surface, col, r, border_radius=6)
-        pygame.draw.rect(surface, (10, 10, 10), r, 2, border_radius=6)
+    def try_activate(self, merged, level):
+        """
+        Activate checkpoint ONLY when merged entity touches it.
+        Updates respawn positions for split players.
+        """
+        if self.active:
+            return
+        if merged and self.rect.colliderect(merged.rect):
+            self.active = True
+
+            level.respawn_p1 = (self.rect.centerx - 40, self.rect.bottom - 48)
+            level.respawn_p2 = (self.rect.centerx + 40, self.rect.bottom - 48)
+
+    def draw(self, surface, cam):
+        r = self.rect.move(-cam[0], -cam[1])
+        color = (80, 200, 120) if self.active else (60, 60, 60)
+        pygame.draw.rect(surface, color, r)
+        pygame.draw.rect(surface, (20, 20, 20), r, 2)

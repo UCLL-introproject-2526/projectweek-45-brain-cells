@@ -52,7 +52,6 @@ class BaseLevel:
     def build(self):
         raise NotImplementedError
 
-    # Blocks ARE solid (important for standing)
     def solids(self):
         solids = list(self.tiles)
         solids += [d for d in self.doors if d.solid]
@@ -66,16 +65,23 @@ class BaseLevel:
         # terrain + doors
         base_solids = list(self.tiles) + [d for d in self.doors if d.solid]
 
-        # 🔑 CRITICAL FIX: block must not collide with itself
+        # update blocks (no self-collision)
         for b in self.blocks:
             solids_without_self = base_solids + [o for o in self.blocks if o is not b]
             b.update(dt, solids_without_self)
 
+        # switches
         for s in self.switches:
             s.update(dt, self.actors_for_switches(actors))
 
+        # doors
         for d in self.doors:
             d.update(dt)
+
+        # 🔑 CHECKPOINTS (MERGED ONLY)
+        merged = actors[0] if len(actors) == 1 else None
+        for cp in self.checkpoints:
+            cp.try_activate(merged, self)
 
     def draw_background(self, surface, camera_offset, t):
         surface.fill((12, 12, 18))
