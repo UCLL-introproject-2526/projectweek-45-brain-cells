@@ -64,7 +64,7 @@ class Door(Entity):
             pygame.draw.rect(surface, (20, 20, 20), r, 3)
 
 
-class Goal(Entity):
+class Finish(Entity):
     def __init__(self, x, y, w=64, h=96):
         super().__init__(x, y, w, h)
 

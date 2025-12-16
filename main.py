@@ -44,6 +44,9 @@ def hit_spikes(actor, spikes):
 def hit_cannonballs(actor, balls):
     return any(actor.rect.colliderect(b.rect) for b in balls)
 
+def hit_goblins(actor, goblins):
+    return any(actor.rect.colliderect(g.rect) for g in goblins)
+
 
 def fell_out_of_world(actor):
     return actor.rect.top > KILL_Y
@@ -239,6 +242,16 @@ while running:
 
                 merged = MergedPlayer(mx, my, p1_input, p2_input)
 
+                # ✅ FIX: hard reset physics to prevent sideways impulse
+                if hasattr(merged, "vel"):
+                    merged.vel.xy = (0, 0)
+                if hasattr(merged, "on_ground"):
+                    merged.on_ground = False
+
+                # ✅ FIX: if your merged player supports one-frame lock, enable it
+                if hasattr(merged, "just_merged"):
+                    merged.just_merged = True
+
                 # ✅ IMPORTANT: prevent merge-glitch into walls/tiles
                 resolve_spawn_collision(merged.rect, level.solids())
 
@@ -275,19 +288,27 @@ while running:
     # -------------------------
     died = False
     if merged:
-        if (hit_spikes(merged, level.spikes)
-                or hit_cannonballs(merged, level.cannonballs)
-                or fell_out_of_world(merged)):
+        if (
+            hit_spikes(merged, level.spikes)
+            or hit_cannonballs(merged, level.cannonballs)
+            or hit_goblins(merged, level.goblins)
+            or fell_out_of_world(merged)
+        ):
             merged = None
             died = True
     else:
-        if (hit_spikes(player1, level.spikes)
-                or hit_spikes(player2, level.spikes)
-                or hit_cannonballs(player1, level.cannonballs)
-                or hit_cannonballs(player2, level.cannonballs)
-                or fell_out_of_world(player1)
-                or fell_out_of_world(player2)):
+        if (
+            hit_spikes(player1, level.spikes)
+            or hit_spikes(player2, level.spikes)
+            or hit_cannonballs(player1, level.cannonballs)
+            or hit_cannonballs(player2, level.cannonballs)
+            or hit_goblins(player1, level.goblins)
+            or hit_goblins(player2, level.goblins)
+            or fell_out_of_world(player1)
+            or fell_out_of_world(player2)
+        ):
             died = True
+
 
     if died:
         player1.rect.topleft = level.respawn_p1
@@ -298,8 +319,8 @@ while running:
     # -------------------------
     # WIN / UNLOCK (MERGED ONLY)
     # -------------------------
-    if merged and level.goal:
-        if merged.rect.colliderect(level.goal.rect):
+    if merged and level.finish:
+        if merged.rect.colliderect(level.finish.rect):
             idx = level_classes.index(type(level))
             if idx + 1 > unlocked_levels:
                 unlocked_levels = idx + 1

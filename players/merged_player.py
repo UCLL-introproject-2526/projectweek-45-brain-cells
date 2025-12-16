@@ -17,34 +17,38 @@ class MergedPlayer(Entity):
         self.input2 = input2
         self.grabbed_block = None
 
+        # 🔑 prevents sideways impulse on merge frame
+        self.just_merged = True
+
     def wants_split(self):
         return self.input1.merge_pressed() or self.input2.merge_pressed()
 
     def _find_block(self, blocks):
         for b in blocks:
-            vertical_overlap = self.rect.bottom > b.rect.top and self.rect.top < b.rect.bottom
-            horizontal_dist = abs(self.rect.centerx - b.rect.centerx)
-            if vertical_overlap and horizontal_dist <= TILE_SIZE + GRAB_RANGE:
+            vertical = self.rect.bottom > b.rect.top and self.rect.top < b.rect.bottom
+            horizontal = abs(self.rect.centerx - b.rect.centerx) <= TILE_SIZE + GRAB_RANGE
+            if vertical and horizontal:
                 return b
         return None
 
     def update(self, dt, solids, blocks):
-        keys = pygame.key.get_pressed()
+        # 🔑 lock movement on merge frame
+        if self.just_merged:
+            self.vel.x = 0
+            self.just_merged = False
 
         axis = self.input1.axis() + self.input2.axis()
         axis = max(-1, min(1, axis))
         self.vel.x = axis * MERGED_SPEED
 
-        if keys[GRAB_KEY]:
-            if not self.grabbed_block:
-                block = self._find_block(blocks)
-                if block:
-                    self.grabbed_block = block
-                    block.grabbed = True
-        else:
-            if self.grabbed_block:
-                self.grabbed_block.grabbed = False
-                self.grabbed_block = None
+        if not self.grabbed_block and pygame.key.get_pressed()[GRAB_KEY]:
+            block = self._find_block(blocks)
+            if block:
+                self.grabbed_block = block
+                block.grabbed = True
+        elif self.grabbed_block and not pygame.key.get_pressed()[GRAB_KEY]:
+            self.grabbed_block.grabbed = False
+            self.grabbed_block = None
 
         if not self.grabbed_block and self.on_ground:
             if self.input1.jump_pressed() or self.input2.jump_pressed():
@@ -52,6 +56,7 @@ class MergedPlayer(Entity):
 
         self.vel.y += GRAVITY
 
+        # horizontal (tiles only)
         self.rect.x += int(self.vel.x)
         for s in solids:
             if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
@@ -64,6 +69,7 @@ class MergedPlayer(Entity):
         if self.grabbed_block:
             self.grabbed_block.vel.x = self.vel.x
 
+        # vertical
         self.on_ground = False
         self.rect.y += int(self.vel.y)
         for s in solids:

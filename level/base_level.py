@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+from assets.goblins import load_goblin_sprites
 from settings import TILE_SIZE
 
 
@@ -39,6 +40,9 @@ class BaseLevel:
         self.cannons = []
         self.cannonballs = []
         self.ground = []
+        self.goblins = []
+        self.goblin_sprites = load_goblin_sprites()
+
         self.goal = None
         self.wall = []
 
@@ -89,6 +93,9 @@ class BaseLevel:
         # Doors
         for d in self.doors:
             d.update(dt)
+        for g in self.goblins:
+            g.update(dt, self.solids())
+
 
         # Cannons
         for c in self.cannons:
@@ -152,6 +159,10 @@ class BaseLevel:
             ground.draw(surface, camera_offset)
         for wall in self.wall:
             wall.draw(surface, camera_offset)
+        for g in self.goblins:
+            g.draw(surface, camera_offset)
+
         if self.goal:
             self.goal.draw(surface, camera_offset)
 
+        
