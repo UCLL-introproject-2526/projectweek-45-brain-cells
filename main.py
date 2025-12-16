@@ -40,13 +40,49 @@ def distance(a, b):
 def hit_spikes(actor, spikes):
     return any(actor.rect.colliderect(s.rect) for s in spikes)
 
+
 def hit_cannonballs(actor, balls):
     return any(actor.rect.colliderect(b.rect) for b in balls)
 
 
-
 def fell_out_of_world(actor):
     return actor.rect.top > KILL_Y
+
+
+# -----------------------------
+# SAFE SPAWN RESOLUTION
+# -----------------------------
+def resolve_spawn_collision(rect, solids, max_iters=8):
+    """
+    Push rect out of solids using minimal penetration resolution.
+    Iterative to handle corners / multiple overlaps.
+    """
+    for _ in range(max_iters):
+        moved = False
+        for s in solids:
+            if not rect.colliderect(s.rect):
+                continue
+
+            dx1 = rect.right - s.rect.left      # overlap if rect is left of s
+            dx2 = s.rect.right - rect.left      # overlap if rect is right of s
+            dy1 = rect.bottom - s.rect.top      # overlap if rect is above s
+            dy2 = s.rect.bottom - rect.top      # overlap if rect is below s
+
+            min_pen = min(dx1, dx2, dy1, dy2)
+
+            if min_pen == dx1:
+                rect.right = s.rect.left
+            elif min_pen == dx2:
+                rect.left = s.rect.right
+            elif min_pen == dy1:
+                rect.bottom = s.rect.top
+            else:
+                rect.top = s.rect.bottom
+
+            moved = True
+
+        if not moved:
+            break
 
 
 # -----------------------------
@@ -197,17 +233,37 @@ while running:
         if merge_cooldown <= 0 and (p1_input.merge_pressed() or p2_input.merge_pressed()):
             if distance(player1, player2) <= MERGE_DISTANCE:
                 effects.append(MergeEffect(player1.rect.center))
+
                 mx = (player1.rect.centerx + player2.rect.centerx) // 2 - MERGED_W // 2
-                my = min(player1.rect.top, player2.rect.top) - 20
+                my = min(player1.rect.top, player2.rect.top) - 4  # less aggressive than -20
+
                 merged = MergedPlayer(mx, my, p1_input, p2_input)
+
+                # ✅ IMPORTANT: prevent merge-glitch into walls/tiles
+                resolve_spawn_collision(merged.rect, level.solids())
+
                 merge_cooldown = MERGE_COOLDOWN_SEC
+
     else:
         merged.update(dt, level.solids(), level.blocks)
 
         if merge_cooldown <= 0 and merged.wants_split():
             effects.append(MergeEffect(merged.rect.center))
-            player1.rect.midbottom = (merged.rect.centerx - 24, merged.rect.bottom)
-            player2.rect.midbottom = (merged.rect.centerx + 24, merged.rect.bottom)
+
+            solids = level.solids()
+
+            # ✅ Split offsets based on player size, not merged size
+            split_dx = max(PLAYER_W, 28)
+            player1.rect.midbottom = (merged.rect.centerx - split_dx, merged.rect.bottom)
+            player2.rect.midbottom = (merged.rect.centerx + split_dx, merged.rect.bottom)
+
+            # ✅ IMPORTANT: prevent split-glitch into walls/tiles
+            resolve_spawn_collision(player1.rect, solids)
+            resolve_spawn_collision(player2.rect, solids)
+
+            player1.vel.xy = (0, 0)
+            player2.vel.xy = (0, 0)
+
             merged = None
             merge_cooldown = MERGE_COOLDOWN_SEC
 
@@ -220,17 +276,17 @@ while running:
     died = False
     if merged:
         if (hit_spikes(merged, level.spikes)
-            or hit_cannonballs(merged, level.cannonballs)
-            or fell_out_of_world(merged)):
+                or hit_cannonballs(merged, level.cannonballs)
+                or fell_out_of_world(merged)):
             merged = None
             died = True
     else:
         if (hit_spikes(player1, level.spikes)
-            or hit_spikes(player2, level.spikes)
-            or hit_cannonballs(player1, level.cannonballs)
-            or hit_cannonballs(player2, level.cannonballs)
-            or fell_out_of_world(player1)
-            or fell_out_of_world(player2)):
+                or hit_spikes(player2, level.spikes)
+                or hit_cannonballs(player1, level.cannonballs)
+                or hit_cannonballs(player2, level.cannonballs)
+                or fell_out_of_world(player1)
+                or fell_out_of_world(player2)):
             died = True
 
     if died:
@@ -238,7 +294,6 @@ while running:
         player2.rect.topleft = level.respawn_p2
         player1.vel.xy = (0, 0)
         player2.vel.xy = (0, 0)
-
 
     # -------------------------
     # WIN / UNLOCK (MERGED ONLY)

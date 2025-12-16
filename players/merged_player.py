@@ -1,8 +1,7 @@
 import pygame
 from core.entity import Entity
 from settings import (
-    TILE_SIZE,
-    GRAVITY,
+    TILE_SIZE, GRAVITY,
     MERGED_W, MERGED_H,
     MERGED_SPEED, MERGED_JUMP,
     GRAB_KEY, GRAB_RANGE
@@ -22,15 +21,9 @@ class MergedPlayer(Entity):
         return self.input1.merge_pressed() or self.input2.merge_pressed()
 
     def _find_block(self, blocks):
-        """Find a block next to the player (left or right)."""
         for b in blocks:
-            vertical_overlap = (
-                self.rect.bottom > b.rect.top and
-                self.rect.top < b.rect.bottom
-            )
-
+            vertical_overlap = self.rect.bottom > b.rect.top and self.rect.top < b.rect.bottom
             horizontal_dist = abs(self.rect.centerx - b.rect.centerx)
-
             if vertical_overlap and horizontal_dist <= TILE_SIZE + GRAB_RANGE:
                 return b
         return None
@@ -38,16 +31,10 @@ class MergedPlayer(Entity):
     def update(self, dt, solids, blocks):
         keys = pygame.key.get_pressed()
 
-        # -------------------------
-        # INPUT
-        # -------------------------
         axis = self.input1.axis() + self.input2.axis()
         axis = max(-1, min(1, axis))
         self.vel.x = axis * MERGED_SPEED
 
-        # -------------------------
-        # GRAB LOGIC
-        # -------------------------
         if keys[GRAB_KEY]:
             if not self.grabbed_block:
                 block = self._find_block(blocks)
@@ -59,23 +46,14 @@ class MergedPlayer(Entity):
                 self.grabbed_block.grabbed = False
                 self.grabbed_block = None
 
-        # -------------------------
-        # JUMP (disabled while grabbing)
-        # -------------------------
         if not self.grabbed_block and self.on_ground:
             if self.input1.jump_pressed() or self.input2.jump_pressed():
                 self.vel.y = MERGED_JUMP
 
-        # Gravity
         self.vel.y += GRAVITY
 
-        # -------------------------
-        # HORIZONTAL MOVE (PLAYER)
-        # -------------------------
         self.rect.x += int(self.vel.x)
-
         for s in solids:
-            # only resolve horizontal collisions if overlapping vertically
             if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
                 if self.rect.colliderect(s.rect):
                     if self.vel.x > 0:
@@ -83,18 +61,11 @@ class MergedPlayer(Entity):
                     elif self.vel.x < 0:
                         self.rect.left = s.rect.right
 
-        # -------------------------
-        # APPLY BLOCK MOVEMENT (via velocity, NOT teleport)
-        # -------------------------
         if self.grabbed_block:
             self.grabbed_block.vel.x = self.vel.x
 
-        # -------------------------
-        # VERTICAL MOVE
-        # -------------------------
         self.on_ground = False
         self.rect.y += int(self.vel.y)
-
         for s in solids:
             if self.rect.colliderect(s.rect):
                 if self.vel.y > 0:
