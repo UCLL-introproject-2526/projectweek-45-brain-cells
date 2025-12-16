@@ -116,8 +116,8 @@ level_names = [getattr(c, "name", c.__name__) for c in level_classes]
 # INPUTS
 p1_input, p2_input = build_inputs("QWERTY")
 
-player1 = Player(120, 100, p1_input, (80, 160, 255))
-player2 = Player(200, 100, p2_input, (255, 170, 80))
+player1 = Player(120, 100, p1_input, "white")
+player2 = Player(200, 100, p2_input, "white")
 
 merged = None
 merge_cooldown = 0.0
