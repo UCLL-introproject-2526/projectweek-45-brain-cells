@@ -6,6 +6,8 @@ from settings import (
     GRAVITY
 )
 
+LAND_EPSILON = 6  # tolerance for landing checks
+
 
 class Player(Entity):
     def __init__(self, x, y, input_handler, color):
@@ -15,7 +17,13 @@ class Player(Entity):
         self.vel = pygame.Vector2(0, 0)
         self.on_ground = False
 
+        # 🔑 store previous position
+        self.prev_rect = self.rect.copy()
+
     def update(self, dt, solids, other_players):
+        # store previous rect
+        self.prev_rect = self.rect.copy()
+
         # -------------------------
         # INPUT
         # -------------------------
@@ -29,13 +37,11 @@ class Player(Entity):
         self.vel.y += GRAVITY
 
         # -------------------------
-        # HORIZONTAL MOVE
-        # (tiles / blocks ONLY)
+        # HORIZONTAL MOVE (tiles only)
         # -------------------------
         self.rect.x += int(self.vel.x)
 
         for s in solids:
-            # only block sideways movement if overlapping vertically
             if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
                 if self.rect.colliderect(s.rect):
                     if self.vel.x > 0:
@@ -45,12 +51,12 @@ class Player(Entity):
 
         # -------------------------
         # VERTICAL MOVE
-        # (tiles + players)
         # -------------------------
         self.on_ground = False
         self.rect.y += int(self.vel.y)
 
-        for s in solids + other_players:
+        # tiles first
+        for s in solids:
             if self.rect.colliderect(s.rect):
                 if self.vel.y > 0:
                     self.rect.bottom = s.rect.top
@@ -59,6 +65,20 @@ class Player(Entity):
                 elif self.vel.y < 0:
                     self.rect.top = s.rect.bottom
                     self.vel.y = 0
+
+        # players second (LANDING ONLY)
+        for p in other_players:
+            if not self.rect.colliderect(p.rect):
+                continue
+
+            # ✅ only land if we were above last frame
+            if (
+                self.vel.y > 0 and
+                self.prev_rect.bottom <= p.rect.top + LAND_EPSILON
+            ):
+                self.rect.bottom = p.rect.top
+                self.vel.y = 0
+                self.on_ground = True
 
     def draw(self, surface, cam):
         r = self.rect.move(-cam[0], -cam[1])
