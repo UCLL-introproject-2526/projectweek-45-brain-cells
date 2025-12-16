@@ -18,6 +18,9 @@ class AsciiLevel(BaseLevel):
     
     def load_background(self, path):
         img = pygame.image.load(path).convert()
+        world_w = len(self.map_data[0]) * TILE_SIZE
+        world_h = len(self.map_data) * TILE_SIZE
+        img = pygame.transform.scale(img, (world_w, world_h))
         self.background = img
     
     def draw_background(self, screen, cam, t):
