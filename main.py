@@ -71,7 +71,7 @@ save_data = load_save()
 unlocked_levels = save_data.get("unlocked_levels", 1)
 
 # LEVELS
-level_classes = discover_levels("level")
+level_classes = discover_levels("level.levels")
 level_names = [getattr(c, "name", c.__name__) for c in level_classes]
 
 # INPUTS
