@@ -49,7 +49,7 @@ class AsciiLevel(BaseLevel):
                     self.blocks.append(PushBlock(wx, wy - TILE_SIZE))
 
                 elif ch == "S":
-                    self.spikes.append(Spike(wx, wy + TILE_SIZE - 24))
+                    self.spikes.append(Spike(wx, wy))
 
                 elif ch == "G":
                     self.goal = Goal(wx, wy)
