@@ -38,6 +38,7 @@ class BaseLevel:
         self.checkpoints = []
         self.cannons = []
         self.cannonballs = []
+        self.ground = []
         self.goal = None
 
         self.spawn_p1 = (120, 100)
@@ -62,6 +63,7 @@ class BaseLevel:
         solids += [d for d in self.doors if d.solid]
         solids += self.blocks
         solids += self.cannons   # 🔑 cannons are solid
+        solids += self.ground
         return solids
 
     def actors_for_switches(self, actors):
@@ -145,5 +147,7 @@ class BaseLevel:
             c.draw(surface, camera_offset)
         for ball in self.cannonballs:
             ball.draw(surface, camera_offset)
+        for ground in self.ground:
+            ground.draw(surface, camera_offset)
         if self.goal:
             self.goal.draw(surface, camera_offset)

@@ -6,7 +6,7 @@ from level.spikes import Spike
 from level.checkpoint import Checkpoint
 from level.cannon import Cannon
 from settings import TILE_SIZE
-
+from level.ground import Ground
 
 class AsciiLevel(BaseLevel):
     map_data = []
@@ -45,3 +45,6 @@ class AsciiLevel(BaseLevel):
 
                 elif ch == "2":
                     self.spawn_p2 = (wx, wy)
+                
+                elif ch == "@":
+                    self.ground.append(Ground(wx, wy, TILE_SIZE))
