@@ -16,10 +16,17 @@ class Player(Entity):
         self.color = color
         self.vel = pygame.Vector2(0, 0)
         self.on_ground = False
+
+        # previous frame rect (for temporal checks)
         self.prev_rect = self.rect.copy()
 
+        # 🔑 prevents compression explosion
+        self.standing_on_player = False
+
     def update(self, dt, solids, other_players):
+        # store previous state
         self.prev_rect = self.rect.copy()
+        self.standing_on_player = False
 
         # -------------------------
         # INPUT
@@ -30,14 +37,15 @@ class Player(Entity):
         if self.on_ground and self.input.jump_pressed():
             self.vel.y = PLAYER_JUMP
 
+        # gravity
         self.vel.y += GRAVITY
 
-        # ==========================================================
+        # ==================================================
         # HORIZONTAL MOVE
-        # ==========================================================
+        # ==================================================
         self.rect.x += int(self.vel.x)
 
-        # tiles
+        # tiles (full block)
         for s in solids:
             if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
                 if self.rect.colliderect(s.rect):
@@ -46,40 +54,45 @@ class Player(Entity):
                     elif self.vel.x < 0:
                         self.rect.left = s.rect.right
 
-        # players (horizontal ONLY)
+        # players (horizontal block ONLY)
         for p in other_players:
             if not self.rect.colliderect(p.rect):
                 continue
 
-            # only block if overlapping vertically
             if self.rect.bottom > p.rect.top and self.rect.top < p.rect.bottom:
                 if self.vel.x > 0:
                     self.rect.right = p.rect.left
                 elif self.vel.x < 0:
                     self.rect.left = p.rect.right
 
-        # ==========================================================
+        # ==================================================
         # VERTICAL MOVE
-        # ==========================================================
+        # ==================================================
         self.on_ground = False
         self.rect.y += int(self.vel.y)
 
-        # tiles
+        # -------- tiles --------
         for s in solids:
-            if self.rect.colliderect(s.rect):
-                if self.vel.y > 0:
-                    self.rect.bottom = s.rect.top
-                    self.vel.y = 0
-                    self.on_ground = True
-                elif self.vel.y < 0:
-                    self.rect.top = s.rect.bottom
-                    self.vel.y = 0
+            if not self.rect.colliderect(s.rect):
+                continue
 
-        # players (LANDING ONLY)
+            # floor
+            if self.vel.y > 0:
+                self.rect.bottom = s.rect.top
+                self.vel.y = 0
+                self.on_ground = True
+
+            # ceiling (BLOCK ONLY if NOT standing on player)
+            elif self.vel.y < 0 and not self.standing_on_player:
+                self.rect.top = s.rect.bottom
+                self.vel.y = 0
+
+        # -------- players (VERTICAL RULES) --------
         for p in other_players:
             if not self.rect.colliderect(p.rect):
                 continue
 
+            # LANDING FROM ABOVE
             if (
                 self.vel.y > 0 and
                 self.prev_rect.bottom <= p.rect.top + LAND_EPSILON
@@ -87,6 +100,15 @@ class Player(Entity):
                 self.rect.bottom = p.rect.top
                 self.vel.y = 0
                 self.on_ground = True
+                self.standing_on_player = True
+
+            # HIT FROM BELOW → CANCEL JUMP
+            elif (
+                self.vel.y < 0 and
+                self.prev_rect.top >= p.rect.bottom - LAND_EPSILON
+            ):
+                self.rect.top = p.rect.bottom
+                self.vel.y = 0
 
     def draw(self, surface, cam):
         r = self.rect.move(-cam[0], -cam[1])
