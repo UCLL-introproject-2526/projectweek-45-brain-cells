@@ -18,12 +18,13 @@ class AsciiLevel(BaseLevel):
     
     def load_background(self, path):
         img = pygame.image.load(path).convert()
-        img = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
         self.background = img
     
     def draw_background(self, screen, cam, t):
         if self.background:
-            screen.blit(self.background, (0, 0))
+            cam_x, cam_y = cam
+            factor = 0.3
+            screen.blit(self.background, (-cam_x * factor, -cam_y * factor))
         else:
             screen.fill((0, 0, 0))
 
