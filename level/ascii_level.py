@@ -6,6 +6,8 @@ from level.spikes import Spike
 from level.checkpoint import Checkpoint
 from level.cannon import Cannon
 from settings import TILE_SIZE
+from level.ground import Ground
+from level.wall import Wall
 import pygame
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -65,3 +67,9 @@ class AsciiLevel(BaseLevel):
 
                 elif ch == "2":
                     self.spawn_p2 = (wx, wy)
+                
+                elif ch == "@":
+                    self.ground.append(Ground(wx, wy, TILE_SIZE))
+                
+                elif ch == "i":
+                    self.wall.append(Wall(wx, wy, TILE_SIZE))
