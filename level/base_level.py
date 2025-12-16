@@ -36,6 +36,8 @@ class BaseLevel:
         self.spikes = []
         self.torches = []
         self.checkpoints = []
+        self.cannons = []
+        self.cannonballs = []
         self.goal = None
 
         self.spawn_p1 = (120, 100)
@@ -52,37 +54,63 @@ class BaseLevel:
     def build(self):
         raise NotImplementedError
 
+    # -------------------------
+    # SOLIDS
+    # -------------------------
     def solids(self):
         solids = list(self.tiles)
         solids += [d for d in self.doors if d.solid]
         solids += self.blocks
+        solids += self.cannons   # 🔑 cannons are solid
         return solids
 
     def actors_for_switches(self, actors):
         return list(actors) + list(self.blocks)
 
+    # -------------------------
+    # UPDATE
+    # -------------------------
     def update(self, dt, actors):
-        # terrain + doors
-        base_solids = list(self.tiles) + [d for d in self.doors if d.solid]
+        base_solids = list(self.tiles) + [d for d in self.doors if d.solid] + self.cannons
 
-        # update blocks (no self-collision)
+        # Blocks
         for b in self.blocks:
             solids_without_self = base_solids + [o for o in self.blocks if o is not b]
             b.update(dt, solids_without_self)
 
-        # switches
+        # Switches
         for s in self.switches:
             s.update(dt, self.actors_for_switches(actors))
 
-        # doors
+        # Doors
         for d in self.doors:
             d.update(dt)
 
-        # 🔑 CHECKPOINTS (MERGED ONLY)
+        # Cannons
+        for c in self.cannons:
+            c.update(dt, self)
+
+        # Cannonballs
+        for ball in self.cannonballs[:]:
+            ball.update(dt)
+
+            # 🔑 REMOVE ON SOLID HIT
+            for solid in base_solids + self.blocks:
+                if solid is ball.owner:
+                    continue
+                if ball.rect.colliderect(solid.rect):
+                    self.cannonballs.remove(ball)
+                    break
+
+
+        # Checkpoints (merged only)
         merged = actors[0] if len(actors) == 1 else None
         for cp in self.checkpoints:
             cp.try_activate(merged, self)
 
+    # -------------------------
+    # DRAW
+    # -------------------------
     def draw_background(self, surface, camera_offset, t):
         surface.fill((12, 12, 18))
         ox, oy = camera_offset
@@ -112,5 +140,9 @@ class BaseLevel:
             sp.draw(surface, camera_offset)
         for cp in self.checkpoints:
             cp.draw(surface, camera_offset)
+        for c in self.cannons:
+            c.draw(surface, camera_offset)
+        for ball in self.cannonballs:
+            ball.draw(surface, camera_offset)
         if self.goal:
             self.goal.draw(surface, camera_offset)

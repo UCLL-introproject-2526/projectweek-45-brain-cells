@@ -40,6 +40,10 @@ def distance(a, b):
 def hit_spikes(actor, spikes):
     return any(actor.rect.colliderect(s.rect) for s in spikes)
 
+def hit_cannonballs(actor, balls):
+    return any(actor.rect.colliderect(b.rect) for b in balls)
+
+
 
 def fell_out_of_world(actor):
     return actor.rect.top > KILL_Y
@@ -215,12 +219,18 @@ while running:
     # -------------------------
     died = False
     if merged:
-        if hit_spikes(merged, level.spikes) or fell_out_of_world(merged):
+        if (hit_spikes(merged, level.spikes)
+            or hit_cannonballs(merged, level.cannonballs)
+            or fell_out_of_world(merged)):
             merged = None
             died = True
     else:
-        if (hit_spikes(player1, level.spikes) or hit_spikes(player2, level.spikes)
-                or fell_out_of_world(player1) or fell_out_of_world(player2)):
+        if (hit_spikes(player1, level.spikes)
+            or hit_spikes(player2, level.spikes)
+            or hit_cannonballs(player1, level.cannonballs)
+            or hit_cannonballs(player2, level.cannonballs)
+            or fell_out_of_world(player1)
+            or fell_out_of_world(player2)):
             died = True
 
     if died:
@@ -228,6 +238,7 @@ while running:
         player2.rect.topleft = level.respawn_p2
         player1.vel.xy = (0, 0)
         player2.vel.xy = (0, 0)
+
 
     # -------------------------
     # WIN / UNLOCK (MERGED ONLY)
