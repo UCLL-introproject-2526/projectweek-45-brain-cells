@@ -9,11 +9,11 @@ class Tile(Entity):
     def load_images(cls):
         if cls.STONE_IMG is None:
             cls.STONE_IMG = pygame.image.load(
-                "projectweek-45-brain-cells/assets/tiles/stone.png"
+                "assets/tiles/stone.png"
             ).convert_alpha()
 
             cls.STONE_DARK_IMG = pygame.image.load(
-                "projectweek-45-brain-cells/assets/tiles/stone_dark.png"
+                "assets/tiles/stone_dark.png"
             ).convert_alpha()
 
     def __init__(self, x, y, size, variant=0):
