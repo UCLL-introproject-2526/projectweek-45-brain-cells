@@ -1,80 +1,111 @@
 import pygame
 from core.entity import Entity
-from core.physics import PhysicsBody
-from settings import MERGED_W, MERGED_H, MERGED_SPEED, MERGED_JUMP
+from settings import (
+    TILE_SIZE,
+    GRAVITY,
+    MERGED_W, MERGED_H,
+    MERGED_SPEED, MERGED_JUMP,
+    GRAB_KEY, GRAB_RANGE
+)
 
-JUMP_BUFFER_TIME = 0.12
-COYOTE_TIME = 0.12
 
-
-class MergedPlayer(Entity, PhysicsBody):
-    def __init__(self, x, y, input_a, input_b):
-        Entity.__init__(self, x, y, MERGED_W, MERGED_H)
-        PhysicsBody.__init__(self)
-
-        self.input_a = input_a
-        self.input_b = input_b
-
-        self.jump_buffer = 0.0
-        self.coyote_timer = 0.0
+class MergedPlayer(Entity):
+    def __init__(self, x, y, input1, input2):
+        super().__init__(x, y, MERGED_W, MERGED_H)
+        self.vel = pygame.Vector2(0, 0)
+        self.on_ground = False
+        self.input1 = input1
+        self.input2 = input2
+        self.grabbed_block = None
 
     def wants_split(self):
-        return self.input_a.merge_pressed() or self.input_b.merge_pressed()
+        return self.input1.merge_pressed() or self.input2.merge_pressed()
+
+    def _find_block(self, blocks):
+        """Find a block next to the player (left or right)."""
+        for b in blocks:
+            vertical_overlap = (
+                self.rect.bottom > b.rect.top and
+                self.rect.top < b.rect.bottom
+            )
+
+            horizontal_dist = abs(self.rect.centerx - b.rect.centerx)
+
+            if vertical_overlap and horizontal_dist <= TILE_SIZE + GRAB_RANGE:
+                return b
+        return None
 
     def update(self, dt, solids, blocks):
-        # Gravity
-        self.apply_gravity()
+        keys = pygame.key.get_pressed()
 
-        # Horizontal input
-        axis = self.input_a.axis() + self.input_b.axis()
+        # -------------------------
+        # INPUT
+        # -------------------------
+        axis = self.input1.axis() + self.input2.axis()
         axis = max(-1, min(1, axis))
         self.vel.x = axis * MERGED_SPEED
 
-        # Jump buffering
-        if self.input_a.jump_pressed() or self.input_b.jump_pressed():
-            self.jump_buffer = JUMP_BUFFER_TIME
+        # -------------------------
+        # GRAB LOGIC
+        # -------------------------
+        if keys[GRAB_KEY]:
+            if not self.grabbed_block:
+                block = self._find_block(blocks)
+                if block:
+                    self.grabbed_block = block
+                    block.grabbed = True
         else:
-            self.jump_buffer = max(0.0, self.jump_buffer - dt)
+            if self.grabbed_block:
+                self.grabbed_block.grabbed = False
+                self.grabbed_block = None
 
-        # Coyote time
-        if self.on_ground:
-            self.coyote_timer = COYOTE_TIME
-        else:
-            self.coyote_timer = max(0.0, self.coyote_timer - dt)
+        # -------------------------
+        # JUMP (disabled while grabbing)
+        # -------------------------
+        if not self.grabbed_block and self.on_ground:
+            if self.input1.jump_pressed() or self.input2.jump_pressed():
+                self.vel.y = MERGED_JUMP
 
-        if self.jump_buffer > 0 and self.coyote_timer > 0:
-            self.vel.y = MERGED_JUMP
-            self.jump_buffer = 0
-            self.coyote_timer = 0
+        # Gravity
+        self.vel.y += GRAVITY
 
-        # 🔑 PUSH BLOCKS BEFORE COLLISION RESOLUTION
-        self._push_blocks(blocks)
+        # -------------------------
+        # HORIZONTAL MOVE (PLAYER)
+        # -------------------------
+        self.rect.x += int(self.vel.x)
 
-        # Resolve terrain + block collisions (vertical correctness)
-        self.move_and_collide(self.rect, solids, dt)
+        for s in solids:
+            # only resolve horizontal collisions if overlapping vertically
+            if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
+                if self.rect.colliderect(s.rect):
+                    if self.vel.x > 0:
+                        self.rect.right = s.rect.left
+                    elif self.vel.x < 0:
+                        self.rect.left = s.rect.right
 
-    def _push_blocks(self, blocks):
-        for b in blocks:
-            if not self.rect.colliderect(b.rect):
-                continue
+        # -------------------------
+        # APPLY BLOCK MOVEMENT (via velocity, NOT teleport)
+        # -------------------------
+        if self.grabbed_block:
+            self.grabbed_block.vel.x = self.vel.x
 
-            dx = self.vel.x
-            if dx == 0:
-                continue
+        # -------------------------
+        # VERTICAL MOVE
+        # -------------------------
+        self.on_ground = False
+        self.rect.y += int(self.vel.y)
 
-            # Check that collision is horizontal
-            overlap_x = min(self.rect.right, b.rect.right) - max(self.rect.left, b.rect.left)
-            overlap_y = min(self.rect.bottom, b.rect.bottom) - max(self.rect.top, b.rect.top)
+        for s in solids:
+            if self.rect.colliderect(s.rect):
+                if self.vel.y > 0:
+                    self.rect.bottom = s.rect.top
+                    self.vel.y = 0
+                    self.on_ground = True
+                elif self.vel.y < 0:
+                    self.rect.top = s.rect.bottom
+                    self.vel.y = 0
 
-            if overlap_x < overlap_y:
-                if dx > 0:
-                    b.rect.x += dx
-                    self.rect.right = b.rect.left
-                elif dx < 0:
-                    b.rect.x += dx
-                    self.rect.left = b.rect.right
-
-    def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        pygame.draw.rect(surface, (190, 70, 210), r, border_radius=10)
-        pygame.draw.rect(surface, (10, 10, 10), r, 3, border_radius=10)
+    def draw(self, surface, cam):
+        r = self.rect.move(-cam[0], -cam[1])
+        pygame.draw.rect(surface, (160, 80, 200), r)
+        pygame.draw.rect(surface, (60, 20, 80), r, 2)

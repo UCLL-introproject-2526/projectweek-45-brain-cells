@@ -1,9 +1,15 @@
+import pygame
+
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
 FPS = 60
 
 TILE_SIZE = 48
 GRAVITY = 0.85
+
+GRAB_KEY = pygame.K_LSHIFT
+GRAB_RANGE = 12
+
 
 # Player physics
 PLAYER_W, PLAYER_H = 32, 48

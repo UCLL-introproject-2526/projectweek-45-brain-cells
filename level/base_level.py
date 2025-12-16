@@ -76,7 +76,8 @@ class BaseLevel:
         # Blocks
         for b in self.blocks:
             solids_without_self = base_solids + [o for o in self.blocks if o is not b]
-            b.update(dt, solids_without_self)
+            b.update(solids_without_self)
+
 
         # Switches
         for s in self.switches:

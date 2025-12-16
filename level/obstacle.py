@@ -1,32 +1,53 @@
 import pygame
 from core.entity import Entity
-from core.physics import PhysicsBody
-from settings import BLOCK_FRICTION
+from settings import TILE_SIZE, GRAVITY
 
 
-class PushBlock(Entity, PhysicsBody):
-    def __init__(self, x, y, w=48, h=48):
-        Entity.__init__(self, x, y, w, h)
-        PhysicsBody.__init__(self)
+class PushBlock(Entity):
+    def __init__(self, x, y):
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE)
+        self.vel = pygame.Vector2(0, 0)
+        self.grabbed = False
 
-        # 🔑 Stable initial state
-        self.vel.xy = (0, 0)
-        self.on_ground = False
+    def update(self, solids):
+        # -------------------------
+        # GRAVITY
+        # -------------------------
+        self.vel.y += GRAVITY
 
-        self.rect.x = int(self.rect.x)
-        self.rect.y = int(self.rect.y)
+        # -------------------------
+        # VERTICAL MOVE
+        # -------------------------
+        self.rect.y += int(self.vel.y)
 
-    def update(self, dt, solids):
-        self.apply_gravity()
+        for s in solids:
+            if self.rect.colliderect(s.rect):
+                if self.vel.y > 0:
+                    self.rect.bottom = s.rect.top
+                    self.vel.y = 0
+                elif self.vel.y < 0:
+                    self.rect.top = s.rect.bottom
+                    self.vel.y = 0
 
-        self.vel.x *= BLOCK_FRICTION
-        if abs(self.vel.x) < 0.05:
-            self.vel.x = 0
+        # -------------------------
+        # HORIZONTAL MOVE
+        # (velocity is set by merged player)
+        # -------------------------
+        self.rect.x += int(self.vel.x)
 
-        # solids NEVER include self (guaranteed by BaseLevel)
-        self.move_and_collide(self.rect, solids, dt)
+        for s in solids:
+            # 🔑 only block sideways movement if overlapping vertically
+            if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
+                if self.rect.colliderect(s.rect):
+                    if self.vel.x > 0:
+                        self.rect.right = s.rect.left
+                    elif self.vel.x < 0:
+                        self.rect.left = s.rect.right
 
-    def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        pygame.draw.rect(surface, (120, 90, 60), r)
-        pygame.draw.rect(surface, (30, 30, 30), r, 3)
+        # Reset horizontal velocity each frame
+        self.vel.x = 0
+
+    def draw(self, surface, cam):
+        r = self.rect.move(-cam[0], -cam[1])
+        pygame.draw.rect(surface, (120, 110, 100), r)
+        pygame.draw.rect(surface, (40, 30, 20), r, 2)
