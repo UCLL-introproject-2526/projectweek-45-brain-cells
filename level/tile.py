@@ -1,13 +1,35 @@
 import pygame
 from core.entity import Entity
-from settings import STONE, STONE_DARK
 
 class Tile(Entity):
+    STONE_IMG = None
+    STONE_DARK_IMG = None
+
+    @classmethod
+    def load_images(cls):
+        if cls.STONE_IMG is None:
+            cls.STONE_IMG = pygame.image.load(
+                "projectweek-45-brain-cells/assets/tiles/stone.png"
+            ).convert_alpha()
+
+            cls.STONE_DARK_IMG = pygame.image.load(
+                "projectweek-45-brain-cells/assets/tiles/stone_dark.png"
+            ).convert_alpha()
+
     def __init__(self, x, y, size, variant=0):
         super().__init__(x, y, size, size)
+
+        Tile.load_images()
+
         self.variant = variant
+        base_image = (
+            Tile.STONE_IMG if variant == 0 else Tile.STONE_DARK_IMG
+        )
+        self.image = pygame.transform.scale(base_image, (size, size))
 
     def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        pygame.draw.rect(surface, STONE if self.variant == 0 else STONE_DARK, r)
-        pygame.draw.rect(surface, (20, 20, 25), r, 2)
+        surface.blit(
+            self.image,
+            (self.rect.x - camera_offset[0], self.rect.y - camera_offset[1])
+        )
+
