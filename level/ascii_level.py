@@ -4,6 +4,7 @@ from level.obstacle import PushBlock
 from level.devices import Switch, Door, Goal
 from level.spikes import Spike
 from level.checkpoint import Checkpoint
+from level.cannon import Cannon
 from settings import TILE_SIZE
 
 
@@ -27,7 +28,7 @@ class AsciiLevel(BaseLevel):
                 elif ch == "B":
                     self.blocks.append(PushBlock(wx, wy - TILE_SIZE))
 
-                elif ch == "^":
+                elif ch == "S":
                     self.spikes.append(Spike(wx, wy + TILE_SIZE - 24))
 
                 elif ch == "G":
@@ -36,10 +37,11 @@ class AsciiLevel(BaseLevel):
                 elif ch == "C":
                     self.checkpoints.append(Checkpoint(wx, wy))
 
+                elif ch in "<>^v":
+                    self.cannons.append(Cannon(wx, wy, ch))
+
                 elif ch == "1":
                     self.spawn_p1 = (wx, wy)
 
                 elif ch == "2":
                     self.spawn_p2 = (wx, wy)
-
-                # switches & doors already handled elsewhere
