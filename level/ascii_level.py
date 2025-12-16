@@ -7,6 +7,7 @@ from level.checkpoint import Checkpoint
 from level.cannon import Cannon
 from settings import TILE_SIZE
 from level.ground import Ground
+from level.wall import Wall
 
 class AsciiLevel(BaseLevel):
     map_data = []
@@ -48,3 +49,6 @@ class AsciiLevel(BaseLevel):
                 
                 elif ch == "@":
                     self.ground.append(Ground(wx, wy, TILE_SIZE))
+                
+                elif ch == "i":
+                    self.wall.append(Wall(wx, wy, TILE_SIZE))

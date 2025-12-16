@@ -40,6 +40,7 @@ class BaseLevel:
         self.cannonballs = []
         self.ground = []
         self.goal = None
+        self.wall = []
 
         self.spawn_p1 = (120, 100)
         self.spawn_p2 = (200, 100)
@@ -96,14 +97,14 @@ class BaseLevel:
         # Cannonballs
         for ball in self.cannonballs[:]:
             ball.update(dt)
-
+        
             # 🔑 REMOVE ON SOLID HIT
             for solid in base_solids + self.blocks:
                 if solid is ball.owner:
                     continue
                 if ball.rect.colliderect(solid.rect):
                     self.cannonballs.remove(ball)
-                    break
+                    break            
 
 
         # Checkpoints (merged only)
@@ -149,5 +150,8 @@ class BaseLevel:
             ball.draw(surface, camera_offset)
         for ground in self.ground:
             ground.draw(surface, camera_offset)
+        for wall in self.wall:
+            wall.draw(surface, camera_offset)
         if self.goal:
             self.goal.draw(surface, camera_offset)
+
