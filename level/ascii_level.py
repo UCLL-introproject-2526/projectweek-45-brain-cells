@@ -6,10 +6,26 @@ from level.spikes import Spike
 from level.checkpoint import Checkpoint
 from level.cannon import Cannon
 from settings import TILE_SIZE
-
+import pygame
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class AsciiLevel(BaseLevel):
     map_data = []
+
+    def __init__(self):
+        super().__init__()
+        self.background = None
+    
+    def load_background(self, path):
+        img = pygame.image.load(path).convert()
+        img = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.background = img
+    
+    def draw_background(self, screen, cam, t):
+        if self.background:
+            screen.blit(self.background, (0, 0))
+        else:
+            screen.fill((0, 0, 0))
 
     def build(self):
         if not self.map_data:
