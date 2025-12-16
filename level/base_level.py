@@ -128,7 +128,7 @@ class BaseLevel:
         # DOORS (MUST RUN AFTER PLATES)
         # -----------------
         for d in self.doors:
-            d.update(self.plates)
+            d.update(self.plates, actors)
         
 
         # -----------------
