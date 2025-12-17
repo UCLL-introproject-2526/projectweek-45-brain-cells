@@ -100,7 +100,6 @@ pygame.display.set_caption("Split / Merge Dungeon")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 36)
 
-camera = Camera()
 settings_menu = SettingsMenu(font)
 level_menu = LevelSelectMenu(font)
 effects = []
@@ -136,9 +135,9 @@ def draw_actors(screen, cam):
         player1.draw(screen, cam)
         player2.draw(screen, cam)
 
-
 def load_level(idx):
-    global level, merged
+    global level, merged, camera
+
     merged = None
     level = level_classes[idx]()
 
@@ -148,6 +147,11 @@ def load_level(idx):
     player2.vel.xy = (0, 0)
 
     effects.clear()
+
+    # ✅ CREATE CAMERA HERE (world height is now known)
+    world_height = len(level.map_data) * TILE_SIZE
+    camera = Camera(world_height)
+
 
 
 load_level(0)
