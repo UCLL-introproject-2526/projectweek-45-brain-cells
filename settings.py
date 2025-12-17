@@ -13,7 +13,7 @@ GRAB_RANGE = 12
 
 # Player physics
 PLAYER_W, PLAYER_H = (2/3)*TILE_SIZE, TILE_SIZE
-PLAYER_SPEED = 4.0
+PLAYER_SPEED = 4.2
 PLAYER_JUMP = -14
 
 # Merged physics
