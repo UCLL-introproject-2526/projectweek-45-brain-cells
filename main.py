@@ -38,7 +38,7 @@ def distance(a, b):
 
 
 def hit_spikes(actor, spikes):
-    return any(actor.rect.colliderect(s.rect) for s in spikes)
+    return any(spike.collides(actor.rect) for spike in spikes)
 
 
 def hit_cannonballs(actor, balls):
