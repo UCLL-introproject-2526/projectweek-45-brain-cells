@@ -62,7 +62,15 @@ class BaseLevel:
         self.left_corner = []
         self.left_drop = []
         self.right_drop = []
+        self.left_downside = []
+        self.right_downside = []
+        self.downside = []
+        self.left_inner = []
+        self.right_inner = []
 
+        # Deco
+        self.deco = []
+        
         # enemies
         self.goblins = []
         self.goblin_sprites = load_goblin_sprites()
@@ -81,6 +89,8 @@ class BaseLevel:
         # checkpoints may override respawn
         self.respawn_p1 = self.spawn_p1
         self.respawn_p2 = self.spawn_p2
+    
+        
 
     def build(self):
         raise NotImplementedError
@@ -107,6 +117,11 @@ class BaseLevel:
         solids += self.right_corner
         solids += self.left_drop
         solids += self.right_drop
+        solids += self.left_downside
+        solids += self.right_downside
+        solids += self.downside
+        solids += self.left_inner
+        solids += self.right_inner
         return solids
 
 
@@ -253,8 +268,26 @@ class BaseLevel:
         for right_drop in self.right_drop:
             right_drop.draw(surface, camera_offset)
 
+        for left_downside in self.left_downside:
+            left_downside.draw(surface, camera_offset)
+        
+        for right_downside in self.right_downside:
+            right_downside.draw(surface, camera_offset)
+
+        for downside in self.downside:
+            downside.draw(surface, camera_offset)
+
         for g in self.goblins:
             g.draw(surface, camera_offset)
+        
+        for left_inner in self.left_inner:
+            left_inner.draw(surface, camera_offset)
+        
+        for right_inner in self.right_inner:
+            right_inner.draw(surface, camera_offset)
+        
+        for deco in self.deco:
+            deco.draw(surface, camera_offset)
 
         if self.finish:
             self.finish.draw(surface, camera_offset)
