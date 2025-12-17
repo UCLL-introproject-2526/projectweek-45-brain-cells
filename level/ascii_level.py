@@ -7,7 +7,12 @@ from level.checkpoint import Checkpoint
 from level.cannon import Cannon
 from settings import TILE_SIZE
 from level.ground import Ground
-from level.wall import Wall
+from level.left_wall import LWall
+from level.right_wall import RWall
+from level.left_corner import LCorner
+from level.right_corner import RCorner
+from level.left_drop import LDrop
+from level.right_drop import RDrop
 import pygame
 from assets.goblins import load_goblin_sprites
 from level.goblin import Goblin  
@@ -58,7 +63,7 @@ class AsciiLevel(BaseLevel):
                 elif ch == "F":
                     self.finish = Finish(wx, wy - 2*TILE_SIZE)
 
-
+                
                 elif ch == "G":
                     self.goblins.append(Goblin(
                             x * TILE_SIZE,
@@ -128,5 +133,20 @@ class AsciiLevel(BaseLevel):
                 elif ch == "@":
                     self.ground.append(Ground(wx, wy, TILE_SIZE))
                 
-                elif ch == "i":
-                    self.wall.append(Wall(wx, wy, TILE_SIZE))
+                elif ch == "l":
+                    self.left_wall.append(LWall(wx, wy, TILE_SIZE))
+                
+                elif ch == "r":
+                    self.right_wall.append(RWall(wx,wy, TILE_SIZE))
+
+                elif ch == "L":
+                    self.left_corner.append(LCorner(wx, wy, TILE_SIZE))
+                
+                elif ch == "R":
+                    self.right_corner.append(RCorner(wx,wy, TILE_SIZE))
+                
+                elif ch == "(":
+                    self.left_drop.append(LDrop(wx, wy, TILE_SIZE))
+                
+                elif ch == ")":
+                    self.right_drop.append(RDrop(wx,wy, TILE_SIZE))

@@ -56,7 +56,12 @@ class BaseLevel:
 
         # static geometry layers
         self.ground = []
-        self.wall = []
+        self.left_wall = []
+        self.right_wall = []
+        self.right_corner = []
+        self.left_corner = []
+        self.left_drop = []
+        self.right_drop = []
 
         # enemies
         self.goblins = []
@@ -94,7 +99,14 @@ class BaseLevel:
         solids += self.blocks
         solids += self.cannons     # cannons are solid
         solids += self.ground
-        solids += self.wall
+        solids += self.left_wall
+        solids += self.right_wall
+        solids += self.left_corner
+        solids += self.right_corner
+        solids += self.left_corner
+        solids += self.right_corner
+        solids += self.left_drop
+        solids += self.right_drop
         return solids
 
 
@@ -217,8 +229,23 @@ class BaseLevel:
         for ground in self.ground:
             ground.draw(surface, camera_offset)
 
-        for wall in self.wall:
-            wall.draw(surface, camera_offset)
+        for left_wall in self.left_wall:
+            left_wall.draw(surface, camera_offset)
+
+        for right_wall in self.right_wall:
+            right_wall.draw(surface, camera_offset)
+        
+        for left_corner in self.left_corner:
+            left_corner.draw(surface, camera_offset)
+
+        for right_corner in self.right_corner:
+            right_corner.draw(surface, camera_offset)
+
+        for left_drop in self.left_drop:
+            left_drop.draw(surface, camera_offset)
+
+        for right_drop in self.right_drop:
+            right_drop.draw(surface, camera_offset)
 
         for g in self.goblins:
             g.draw(surface, camera_offset)

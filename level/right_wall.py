@@ -1,7 +1,7 @@
 import pygame
 from core.entity import Entity
 
-class Tile(Entity):
+class RWall(Entity):
     STONE_IMG = None
     STONE_DARK_IMG = None
 
@@ -9,7 +9,7 @@ class Tile(Entity):
     def load_images(cls):
         if cls.STONE_IMG is None:
             cls.STONE_IMG = pygame.image.load(
-                "assets/tiles/earth.png"
+                "assets/tiles/right_wall.png"
             ).convert_alpha()
 
             cls.STONE_DARK_IMG = pygame.image.load(
@@ -19,11 +19,11 @@ class Tile(Entity):
     def __init__(self, x, y, size, variant=0):
         super().__init__(x, y, size, size)
 
-        Tile.load_images()
+        RWall.load_images()
 
         self.variant = variant
         base_image = (
-            Tile.STONE_IMG if variant == 0 else Tile.STONE_DARK_IMG
+            RWall.STONE_IMG if variant == 0 else RWall.STONE_DARK_IMG
         )
         self.image = pygame.transform.scale(base_image, (size, size))
 
