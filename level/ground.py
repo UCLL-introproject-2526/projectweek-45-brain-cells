@@ -9,7 +9,7 @@ class Ground(Entity):
     def load_images(cls):
         if cls.STONE_IMG is None:
             cls.STONE_IMG = pygame.image.load(
-                "assets/tiles/stone1.png"
+                "assets/tiles/ground.png"
             ).convert_alpha()
 
             cls.STONE_DARK_IMG = pygame.image.load(
