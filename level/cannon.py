@@ -11,19 +11,41 @@ DIRS = {
 
 
 class CannonBall(Entity):
+
+    CannonBall_IMG = None
+
+    @classmethod
+    def load_images(cls):
+        if cls.CannonBall_IMG is None:
+            cls.CannonBall_IMG = pygame.image.load(
+                "assets/Cannon_ball.png"
+            ).convert_alpha()
+
+
     def __init__(self, x, y, velocity, owner):
         super().__init__(x, y, 16, 16)
+        CannonBall.load_images()
         self.vel = pygame.Vector2(velocity)
         self.owner = owner
+
+
+        self.image = pygame.transform.scale(
+            CannonBall.CannonBall_IMG,(16, 16)
+        )
 
     def update(self, dt):
         self.rect.x += int(self.vel.x * dt)
         self.rect.y += int(self.vel.y * dt)
 
     def draw(self, surface, cam):
-        r = self.rect.move(-cam[0], -cam[1])
-        pygame.draw.circle(surface, (40, 40, 40), r.center, 8)
-        pygame.draw.circle(surface, (140, 140, 140), r.center, 8, 2)
+        pos = (self.rect.x - cam[0], self.rect.y - cam[1])
+        surface.blit(self.image, pos)
+
+    def draw(self, surface, cam):
+        pos = (self.rect.x - cam[0], self.rect.y - cam[1])
+        surface.blit(self.image, pos)
+
+
 
 
 class Cannon(Entity):
