@@ -70,7 +70,7 @@ class Goblin:
             img = pygame.transform.flip(img, True, False)
 
         # 🔑 visual offset (lower sprite, keep hitbox correct)
-        SPRITE_Y_OFFSET = 4
+        SPRITE_Y_OFFSET = 0
 
         surface.blit(
             img,

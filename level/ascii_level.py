@@ -62,7 +62,7 @@ class AsciiLevel(BaseLevel):
                 elif ch == "G":
                     self.goblins.append(Goblin(
                             x * TILE_SIZE,
-                            y * TILE_SIZE+TILE_SIZE/2,
+                            y * TILE_SIZE,
                             self.goblin_sprites
                         )
                     )
