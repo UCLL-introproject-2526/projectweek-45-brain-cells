@@ -13,6 +13,9 @@ from level.left_corner import LCorner
 from level.right_corner import RCorner
 from level.left_drop import LDrop
 from level.right_drop import RDrop
+from level.downside import Down, RDown, LDown
+from level.inner import LInner, RInner
+from level.deco import Deco
 import pygame
 from assets.goblins import load_goblin_sprites
 from level.goblin import Goblin  
@@ -155,3 +158,21 @@ class AsciiLevel(BaseLevel):
                 
                 elif ch == ")":
                     self.right_drop.append(RDrop(wx,wy, TILE_SIZE))
+                
+                elif ch == "]":
+                    self.right_downside.append(RDown(wx,wy, TILE_SIZE))
+                
+                elif ch == "[":
+                    self.left_downside.append(LDown(wx,wy, TILE_SIZE))
+                
+                elif ch == "u":
+                    self.downside.append(Down(wx,wy, TILE_SIZE))
+
+                elif ch == "é":
+                    self.left_inner.append(LInner(wx,wy, TILE_SIZE))
+
+                elif ch == "è":
+                    self.right_inner.append(RInner(wx,wy, TILE_SIZE))
+
+                elif ch == "/":
+                    self.deco.append(Deco(wx,wy, TILE_SIZE))
