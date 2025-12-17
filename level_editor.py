@@ -17,6 +17,7 @@ from editor.dialogs.start_dialog import StartDialog
 from editor.dialogs.new_level_dialog import NewLevelDialog
 from editor.level_picker import LevelPicker
 from editor.load_existing_level import load_level_into_editor
+from editor.dialogs.pause_dialog import PauseDialog
 
 import subprocess
 import sys
@@ -57,6 +58,7 @@ def main():
     hotbar = None
     tile_renderer = None
     preview_cache = None
+    pause_dialog = None
 
     dragging = False
     drag_anchor = None
@@ -150,6 +152,39 @@ def main():
             level_picker = None
 
         # =================================================
+        # PAUSE MENU
+        # =================================================
+        if pause_dialog and pause_dialog.active:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                pause_dialog.handle_event(event)
+
+            pause_dialog.draw(screen)
+            pygame.display.flip()
+            continue
+
+        if pause_dialog and pause_dialog.choice:
+            choice = pause_dialog.choice
+            pause_dialog = None
+
+            if choice == "resume":
+                pass
+
+            elif choice == "save":
+                save_level(state)
+
+            elif choice == "save_&_exit":
+                save_level(state)
+                state = None
+                start_dialog = StartDialog(font)
+
+            elif choice == "exit_without_saving":
+                state = None
+                start_dialog = StartDialog(font)
+
+
+        # =================================================
         # NORMAL EDITOR LOOP
         # =================================================
         for event in pygame.event.get():
@@ -186,6 +221,10 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_n:
                     text_input = TextInput(font, "Level Name", state.level_name)
+
+                elif event.key == pygame.K_ESCAPE:
+                    pause_dialog = PauseDialog(font)
+
 
                 elif event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_CTRL:
                     state.undo()
