@@ -126,9 +126,12 @@ class BaseLevel:
         # -----------------
         # BLOCKS
         # -----------------
+        all_solids = self.solids()
+
         for b in self.blocks:
-            solids_without_self = base_solids + [o for o in self.blocks if o is not b]
+            solids_without_self = [s for s in all_solids if s is not b]
             b.update(solids_without_self)
+
 
         # -----------------
         # PRESSURE PLATES

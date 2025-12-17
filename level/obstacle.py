@@ -46,7 +46,7 @@ class PushBlock(Entity):
     # -------------------------
     def update(self, solids):
         # GRAVITY
-        self.vel.y += 0
+        self.vel.y += GRAVITY
 
         # -------------------------
         # VERTICAL MOVE
