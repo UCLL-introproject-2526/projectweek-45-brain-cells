@@ -60,6 +60,9 @@ class Door:
         self.open = False
         self._was_open = False   # 🔑 track state change
 
+        self.image = pygame.image.load("assets/tiles/brick_wall.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (w, h))
+
     @property
     def solid(self):
         return not self.open
@@ -88,7 +91,7 @@ class Door:
             return
 
         r = self.rect.move(-cam[0], -cam[1])
-        pygame.draw.rect(surface, (60, 60, 80), r)
+        surface.blit(self.image, r)
 
 
 
