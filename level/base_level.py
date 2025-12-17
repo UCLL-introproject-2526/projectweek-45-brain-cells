@@ -161,15 +161,18 @@ class BaseLevel:
         # -----------------
         # CANNONBALLS
         # -----------------
+        all_solids = self.solids()
+
         for ball in self.cannonballs[:]:
             ball.update(dt)
 
-            for solid in base_solids + self.blocks:
+            for solid in all_solids:
                 if solid is ball.owner:
                     continue
                 if ball.rect.colliderect(solid.rect):
                     self.cannonballs.remove(ball)
                     break
+
 
         # -----------------
         # CHECKPOINTS (MERGED ONLY)
