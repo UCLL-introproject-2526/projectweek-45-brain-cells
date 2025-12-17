@@ -30,12 +30,31 @@ class Cannon(Entity):
     """
     Solid entity that periodically fires cannonballs.
     """
+
+    CANNON_IMG = None
+
+    @classmethod
+    def load_images(cls):
+        if cls.CANNON_IMG is None:
+            cls.CANNON_IMG = pygame.image.load(
+                "assets/cannon.png"
+            ).convert_alpha()
+
     def __init__(self, x, y, direction, speed=220, interval=1.5):
         super().__init__(x, y, TILE_SIZE, TILE_SIZE)
+
+        Cannon.load_images()
+
         self.dir = pygame.Vector2(DIRS[direction])
         self.speed = speed
         self.interval = interval
         self.timer = interval
+
+        # scale sprite to tile
+        self.image = pygame.transform.scale(
+            Cannon.CANNON_IMG,
+            (TILE_SIZE, TILE_SIZE)
+        )
 
     def update(self, dt, level):
         self.timer -= dt
@@ -55,14 +74,33 @@ class Cannon(Entity):
 
         level.cannonballs.append(
             CannonBall(cx, cy, (vx, vy), owner=self)
-    )
-
-
-    def draw(self, surface, cam):
-        r = self.rect.move(-cam[0], -cam[1])
-        pygame.draw.rect(surface, (90, 90, 90), r)
-        barrel = (
-            r.centerx + int(self.dir.x * 12),
-            r.centery + int(self.dir.y * 12),
         )
-        pygame.draw.circle(surface, (40, 40, 40), barrel, 6)
+
+    # -------------------------
+    # DRAW (SPRITE-BASED)
+    # -------------------------
+    def draw(self, surface, cam):
+        # determine rotation angle
+        if self.dir == pygame.Vector2(1, 0):      # right
+            angle = 0
+        elif self.dir == pygame.Vector2(0, 1):    # down
+            angle = -90
+        elif self.dir == pygame.Vector2(-1, 0):   # left
+            angle = 180
+        elif self.dir == pygame.Vector2(0, -1):   # up
+            angle = 90
+        else:
+            angle = 0
+
+        rotated = pygame.transform.rotate(self.image, angle)
+
+        # keep center alignment after rotation
+        rect = rotated.get_rect(center=self.rect.center)
+
+        surface.blit(
+            rotated,
+            (
+                rect.x - cam[0],
+                rect.y - cam[1]
+            )
+        )
