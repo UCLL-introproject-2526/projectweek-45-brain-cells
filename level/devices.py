@@ -1,6 +1,6 @@
 import pygame
 from core.entity import Entity
-
+from settings import TILE_SIZE
 
 class Switch(Entity):
     """
@@ -30,41 +30,70 @@ class Switch(Entity):
         pygame.draw.rect(surface, color, r)
         pygame.draw.rect(surface, (20, 20, 20), r, 2)
 
+def resolve_overlap(rect, obstacle_rect):
+    """
+    Gently push rect out of obstacle_rect using minimal axis resolution.
+    """
+    dx_left = obstacle_rect.right - rect.left
+    dx_right = rect.right - obstacle_rect.left
+    dy_top = obstacle_rect.bottom - rect.top
+    dy_bottom = rect.bottom - obstacle_rect.top
 
-class Door(Entity):
-    """
-    Solid when closed; non-solid when open.
-    Has a cooldown so it doesn't snap shut immediately.
-    """
-    def __init__(self, x, y, w=48, h=96, requires=None, cooldown=1.5):
-        super().__init__(x, y, w, h)
-        self.requires = requires or []
-        self.cooldown = cooldown
-        self.timer = 0.0
+    min_overlap = min(dx_left, dx_right, dy_top, dy_bottom)
+
+    if min_overlap == dx_left:
+        rect.left = obstacle_rect.right
+    elif min_overlap == dx_right:
+        rect.right = obstacle_rect.left
+    elif min_overlap == dy_top:
+        rect.top = obstacle_rect.bottom
+    else:
+        rect.bottom = obstacle_rect.top
+
+
+class Door:
+    def __init__(self, x, y, w, h, key, mode="hold", logic="AND"):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.key = key
+        self.mode = mode
+        self.logic = logic
         self.open = False
+        self._was_open = False   # 🔑 track state change
 
     @property
     def solid(self):
         return not self.open
 
-    def update(self, dt):
-        if all(s.on for s in self.requires):
-            self.timer = self.cooldown
-        else:
-            self.timer = max(0.0, self.timer - dt)
+    def update(self, plates, actors=None):
+        self._was_open = self.open
 
-        self.open = self.timer > 0.0
+        linked = [p for p in plates if p.key == self.key]
+        if not linked:
+            return
 
-    def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
+        if self.logic == "AND":
+            self.open = all(p.active for p in linked)
+        elif self.logic == "OR":
+            self.open = any(p.active for p in linked)
+
+        # 🔑 Door just CLOSED
+        if self._was_open and not self.open and actors:
+            for a in actors:
+                if self.rect.colliderect(a.rect):
+                    resolve_overlap(a.rect, self.rect)
+
+
+    def draw(self, surface, cam):
         if self.open:
-            pygame.draw.rect(surface, (40, 40, 60), r, 2)
-        else:
-            pygame.draw.rect(surface, (80, 60, 120), r)
-            pygame.draw.rect(surface, (20, 20, 20), r, 3)
+            return
+
+        r = self.rect.move(-cam[0], -cam[1])
+        pygame.draw.rect(surface, (60, 60, 80), r)
 
 
-class Goal(Entity):
+
+
+class Finish(Entity):
     def __init__(self, x, y, w=64, h=96):
         super().__init__(x, y, w, h)
 
@@ -78,3 +107,38 @@ class Goal(Entity):
             (r.centerx, r.bottom),
             2
         )
+
+
+class PressurePlate:
+    def __init__(self, x, y, key):
+        self.rect = pygame.Rect(x, y, TILE_SIZE, TILE_SIZE/4)
+        self.key = key
+        self.active = False
+
+    def update(self, actors):
+        self.active = any(self.rect.colliderect(a.rect) for a in actors)
+
+    def draw(self, surface, cam):
+        r = self.rect.move(-cam[0], -cam[1])
+        color = (200, 80, 80) if self.active else (120, 40, 40)
+        pygame.draw.rect(surface, color, r)
+
+
+
+class LatchPlate(PressurePlate):
+    def __init__(self, x, y, key):
+        super().__init__(x, y, key)
+        self.triggered = False
+
+    def update(self, actors):
+        if not self.triggered:
+            super().update(actors)
+            if self.active:
+                self.triggered = True
+                self.active = True
+        else:
+            self.active = True
+
+
+class HoldPlate(PressurePlate):
+    pass

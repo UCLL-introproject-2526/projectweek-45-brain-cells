@@ -1,87 +1,176 @@
 import pygame
 from core.entity import Entity
-from core.physics import PhysicsBody
-from settings import PLAYER_W, PLAYER_H, PLAYER_SPEED, PLAYER_JUMP
+from settings import (
+    PLAYER_W, PLAYER_H,
+    PLAYER_SPEED, PLAYER_JUMP,
+    GRAVITY
+)
+
+LAND_EPSILON = 6
+ANIM_FPS = 10  # walking animation speed
 
 
-JUMP_BUFFER_TIME = 0.12
-COYOTE_TIME = 0.12
-
-
-class Player(Entity, PhysicsBody):
-    def __init__(self, x, y, input_handler, color, name="P"):
-        Entity.__init__(self, x, y, PLAYER_W, PLAYER_H)
-        PhysicsBody.__init__(self)
+class Player(Entity):
+    def __init__(self, x, y, input_handler, variant="white"):
+        super().__init__(x, y, PLAYER_W, PLAYER_H)
 
         self.input = input_handler
-        self.color = color
-        self.name = name
-        self.jump_buffer = 0.0
-        self.coyote_timer = 0.0
+        self.vel = pygame.Vector2(0, 0)
+        self.on_ground = False
+        self.variant = variant
 
+        # previous frame rect (for temporal checks)
+        self.prev_rect = self.rect.copy()
 
-    def wants_merge(self):
-        return self.input.merge_pressed()
+        # prevents compression explosion
+        self.standing_on_player = False
 
+        # -------------------------
+        # SPRITES / ANIMATION
+        # -------------------------
+        self.variant = variant.lower()
+        self.walk_frames = self._load_walk_frames()
+        self.frame_index = 0
+        self.anim_timer = 0.0
+        self.facing_right = True
+
+        # scale sprites to hitbox
+        self.walk_frames = [
+            pygame.transform.smoothscale(img, (PLAYER_W, PLAYER_H))
+            for img in self.walk_frames
+        ]
+
+    # --------------------------------------------------
+    # LOAD SPRITES
+    # --------------------------------------------------
+    def _load_walk_frames(self):
+        frames = []
+        for i in range(4):
+            img = pygame.image.load(
+                f"assets/hero/{self.variant}_{i+1}.png"
+            ).convert_alpha()
+            frames.append(img)
+        return frames
+
+    # --------------------------------------------------
+    # UPDATE
+    # --------------------------------------------------
     def update(self, dt, solids, other_players):
-        self.apply_gravity()
+        # store previous state
+        self.prev_rect = self.rect.copy()
+        self.standing_on_player = False
 
-        # Horizontal movement (independent of jumping)
-        self.vel.x = self.input.axis() * PLAYER_SPEED
+        # -------------------------
+        # INPUT
+        # -------------------------
+        axis = self.input.axis()
+        self.vel.x = axis * PLAYER_SPEED
 
-        # Jump buffering
-        if self.input.jump_pressed():
-            self.jump_buffer = JUMP_BUFFER_TIME
-        else:
-            self.jump_buffer = max(0.0, self.jump_buffer - dt)
+        if axis != 0:
+            self.facing_right = axis > 0
 
-        # Coyote time
-        if self.on_ground:
-            self.coyote_timer = COYOTE_TIME
-        else:
-            self.coyote_timer = max(0.0, self.coyote_timer - dt)
-
-        # Jump execution
-        if self.jump_buffer > 0 and self.coyote_timer > 0:
+        if self.on_ground and self.input.jump_pressed():
             self.vel.y = PLAYER_JUMP
-            self.jump_buffer = 0
-            self.coyote_timer = 0
 
-        self.move_and_collide(self.rect, solids, dt)
-        self._collide_players(other_players)
+        # gravity
+        self.vel.y += GRAVITY
 
+        # ==================================================
+        # HORIZONTAL MOVE
+        # ==================================================
+        self.rect.x += int(self.vel.x)
 
-    def _collide_players(self, others):
-        # Simple resolution: separate on overlap by the shallowest axis.
-        for o in others:
-            if o is self:
+        # tiles
+        for s in solids:
+            if self.rect.bottom > s.rect.top and self.rect.top < s.rect.bottom:
+                if self.rect.colliderect(s.rect):
+                    if self.vel.x > 0:
+                        self.rect.right = s.rect.left
+                    elif self.vel.x < 0:
+                        self.rect.left = s.rect.right
+
+        # players (horizontal block ONLY)
+        for p in other_players:
+            if not self.rect.colliderect(p.rect):
                 continue
-            if not self.rect.colliderect(o.rect):
+
+            if self.rect.bottom > p.rect.top and self.rect.top < p.rect.bottom:
+                if self.vel.x > 0:
+                    self.rect.right = p.rect.left
+                elif self.vel.x < 0:
+                    self.rect.left = p.rect.right
+
+        # ==================================================
+        # VERTICAL MOVE
+        # ==================================================
+        self.on_ground = False
+        self.rect.y += int(self.vel.y)
+
+        # -------- tiles --------
+        for s in solids:
+            if not self.rect.colliderect(s.rect):
                 continue
 
-            dx_left = abs(self.rect.right - o.rect.left)
-            dx_right = abs(o.rect.right - self.rect.left)
-            dy_top = abs(self.rect.bottom - o.rect.top)
-            dy_bottom = abs(o.rect.bottom - self.rect.top)
-
-            min_sep = min(dx_left, dx_right, dy_top, dy_bottom)
-
-            if min_sep == dy_top:
-                # standing on them
-                self.rect.bottom = o.rect.top
+            # floor
+            if self.vel.y > 0:
+                self.rect.bottom = s.rect.top
                 self.vel.y = 0
                 self.on_ground = True
-            elif min_sep == dy_bottom:
-                self.rect.top = o.rect.bottom
-                self.vel.y = 0
-            elif min_sep == dx_left:
-                self.rect.right = o.rect.left
-                self.vel.x = 0
-            else:
-                self.rect.left = o.rect.right
-                self.vel.x = 0
 
-    def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        pygame.draw.rect(surface, self.color, r, border_radius=6)
-        pygame.draw.rect(surface, (10, 10, 10), r, 2, border_radius=6)
+            # ceiling
+            elif self.vel.y < 0 and not self.standing_on_player:
+                self.rect.top = s.rect.bottom
+                self.vel.y = 0
+
+        # -------- players --------
+        for p in other_players:
+            if not self.rect.colliderect(p.rect):
+                continue
+
+            # landing on player
+            if (
+                self.vel.y > 0 and
+                self.prev_rect.bottom <= p.rect.top + LAND_EPSILON
+            ):
+                self.rect.bottom = p.rect.top
+                self.vel.y = 0
+                self.on_ground = True
+                self.standing_on_player = True
+
+            # hit from below
+            elif (
+                self.vel.y < 0 and
+                self.prev_rect.top >= p.rect.bottom - LAND_EPSILON
+            ):
+                self.rect.top = p.rect.bottom
+                self.vel.y = 0
+
+        # ==================================================
+        # ANIMATION UPDATE
+        # ==================================================
+        # ==================================================
+# ANIMATION UPDATE (FIXED)
+# ==================================================
+        moving = abs(self.vel.x) > 0.1
+
+        if moving:
+            self.anim_timer += dt
+            if self.anim_timer >= 1 / ANIM_FPS:
+                self.anim_timer -= 1 / ANIM_FPS
+                self.frame_index = (self.frame_index + 1) % len(self.walk_frames)
+        else:
+            self.anim_timer = 0
+            self.frame_index = 0
+
+
+    # --------------------------------------------------
+    # DRAW
+    # --------------------------------------------------
+    def draw(self, surface, cam):
+        img = self.walk_frames[self.frame_index]
+
+        if not self.facing_right:
+            img = pygame.transform.flip(img, True, False)
+
+        r = self.rect.move(-cam[0], -cam[1])
+        surface.blit(img, r.topleft)

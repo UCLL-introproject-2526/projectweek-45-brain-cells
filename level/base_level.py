@@ -1,9 +1,13 @@
 import pygame
 import random
 import math
+from assets.goblins import load_goblin_sprites
 from settings import TILE_SIZE
 
 
+# --------------------------------------------------
+# TORCH (BACKGROUND DECORATION)
+# --------------------------------------------------
 class Torch:
     def __init__(self, x, y):
         self.pos = pygame.Vector2(x, y)
@@ -13,8 +17,10 @@ class Torch:
         ox, oy = camera_offset
         x, y = int(self.pos.x - ox), int(self.pos.y - oy)
 
+        # torch handle
         pygame.draw.rect(surface, (60, 45, 30), pygame.Rect(x - 3, y, 6, 16))
 
+        # flicker glow
         flick = 0.6 + 0.4 * (0.5 + 0.5 * math.sin((t + self.phase) * 6.0))
         radius = int(50 * flick)
 
@@ -23,102 +29,149 @@ class Torch:
         pygame.draw.circle(glow, (255, 200, 80, 85), (radius, radius), int(radius * 0.55))
         surface.blit(glow, (x - radius, y - radius))
 
+        # flame
         pygame.draw.circle(surface, (255, 170, 60), (x, y - 2), 4)
         pygame.draw.circle(surface, (255, 220, 120), (x, y - 3), 2)
 
 
+# --------------------------------------------------
+# BASE LEVEL
+# --------------------------------------------------
 class BaseLevel:
     def __init__(self):
+        # geometry
         self.tiles = []
         self.blocks = []
-        self.switches = []
+
+        # 🔑 pressure system
+        self.plates = []      # hold + latch plates
         self.doors = []
+
+        # hazards / interactables
         self.spikes = []
         self.torches = []
         self.checkpoints = []
         self.cannons = []
         self.cannonballs = []
+
+        # static geometry layers
         self.ground = []
-        self.goal = None
         self.wall = []
 
+        # enemies
+        self.goblins = []
+        self.goblin_sprites = load_goblin_sprites()
+
+        # finish (renamed from goal)
+        self.finish = None
+
+        # spawn points
         self.spawn_p1 = (120, 100)
         self.spawn_p2 = (200, 100)
-
         self.respawn_p1 = self.spawn_p1
         self.respawn_p2 = self.spawn_p2
 
         self.build()
 
+        # checkpoints may override respawn
         self.respawn_p1 = self.spawn_p1
         self.respawn_p2 = self.spawn_p2
 
     def build(self):
         raise NotImplementedError
 
-    # -------------------------
+
+    # --------------------------------------------------
     # SOLIDS
-    # -------------------------
+    # --------------------------------------------------
     def solids(self):
+        """
+        Anything returned here is treated as a blocking solid.
+        Open doors are automatically excluded.
+        """
         solids = list(self.tiles)
         solids += [d for d in self.doors if d.solid]
         solids += self.blocks
-        solids += self.cannons   # 🔑 cannons are solid
+        solids += self.cannons     # cannons are solid
         solids += self.ground
+        solids += self.wall
         return solids
 
-    def actors_for_switches(self, actors):
-        return list(actors) + list(self.blocks)
 
-    # -------------------------
+    # --------------------------------------------------
     # UPDATE
-    # -------------------------
+    # --------------------------------------------------
     def update(self, dt, actors):
-        base_solids = list(self.tiles) + [d for d in self.doors if d.solid] + self.cannons
+        # actors = [player1, player2] OR [merged]
+        pressure_actors = list(actors) + self.blocks
 
-        # Blocks
+        base_solids = (
+            list(self.tiles)
+            + [d for d in self.doors if d.solid]
+            + self.cannons
+        )
+
+        # -----------------
+        # BLOCKS
+        # -----------------
         for b in self.blocks:
             solids_without_self = base_solids + [o for o in self.blocks if o is not b]
             b.update(solids_without_self)
 
+        # -----------------
+        # PRESSURE PLATES
+        # -----------------
+        for p in self.plates:
+            p.update(pressure_actors)
 
-        # Switches
-        for s in self.switches:
-            s.update(dt, self.actors_for_switches(actors))
-
-        # Doors
+        # -----------------
+        # DOORS (MUST RUN AFTER PLATES)
+        # -----------------
         for d in self.doors:
-            d.update(dt)
+            d.update(self.plates, actors)
+        
 
-        # Cannons
+        # -----------------
+        # GOBLINS
+        # -----------------
+        for g in self.goblins:
+            g.update(dt, self.solids())
+
+        # -----------------
+        # CANNONS
+        # -----------------
         for c in self.cannons:
             c.update(dt, self)
 
-        # Cannonballs
+        # -----------------
+        # CANNONBALLS
+        # -----------------
         for ball in self.cannonballs[:]:
             ball.update(dt)
-        
-            # 🔑 REMOVE ON SOLID HIT
+
             for solid in base_solids + self.blocks:
                 if solid is ball.owner:
                     continue
                 if ball.rect.colliderect(solid.rect):
                     self.cannonballs.remove(ball)
-                    break            
+                    break
 
-
-        # Checkpoints (merged only)
+        # -----------------
+        # CHECKPOINTS (MERGED ONLY)
+        # -----------------
         merged = actors[0] if len(actors) == 1 else None
         for cp in self.checkpoints:
             cp.try_activate(merged, self)
 
-    # -------------------------
+
+    # --------------------------------------------------
     # DRAW
-    # -------------------------
+    # --------------------------------------------------
     def draw_background(self, surface, camera_offset, t):
         surface.fill((12, 12, 18))
         ox, oy = camera_offset
 
+        # dungeon wall pattern
         for by in range(14):
             for bx in range(30):
                 x = bx * TILE_SIZE - (ox % TILE_SIZE)
@@ -128,30 +181,47 @@ class BaseLevel:
                 pygame.draw.rect(surface, col, r)
                 pygame.draw.rect(surface, (10, 10, 14), r, 1)
 
+        # torches glow on top of wall
         for torch in self.torches:
             torch.draw(surface, camera_offset, t)
 
     def draw(self, surface, camera_offset):
+        # tiles first (true background)
         for tile in self.tiles:
             tile.draw(surface, camera_offset)
-        for s in self.switches:
-            s.draw(surface, camera_offset)
+
+        # plates sit on ground
+        for p in self.plates:
+            p.draw(surface, camera_offset)
+
+        # doors draw ONLY if closed
         for d in self.doors:
             d.draw(surface, camera_offset)
+
+        # foreground solids & actors
         for b in self.blocks:
             b.draw(surface, camera_offset)
+
         for sp in self.spikes:
             sp.draw(surface, camera_offset)
+
         for cp in self.checkpoints:
             cp.draw(surface, camera_offset)
+
         for c in self.cannons:
             c.draw(surface, camera_offset)
+
         for ball in self.cannonballs:
             ball.draw(surface, camera_offset)
+
         for ground in self.ground:
             ground.draw(surface, camera_offset)
+
         for wall in self.wall:
             wall.draw(surface, camera_offset)
-        if self.goal:
-            self.goal.draw(surface, camera_offset)
 
+        for g in self.goblins:
+            g.draw(surface, camera_offset)
+
+        if self.finish:
+            self.finish.draw(surface, camera_offset)

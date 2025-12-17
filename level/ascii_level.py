@@ -1,7 +1,7 @@
 from level.base_level import BaseLevel
 from level.tile import Tile
 from level.obstacle import PushBlock
-from level.devices import Switch, Door, Goal
+from level.devices import Switch, Door, Finish, HoldPlate, LatchPlate
 from level.spikes import Spike
 from level.checkpoint import Checkpoint
 from level.cannon import Cannon
@@ -9,6 +9,8 @@ from settings import TILE_SIZE
 from level.ground import Ground
 from level.wall import Wall
 import pygame
+from assets.goblins import load_goblin_sprites
+from level.goblin import Goblin  
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class AsciiLevel(BaseLevel):
@@ -53,8 +55,63 @@ class AsciiLevel(BaseLevel):
                 elif ch == "S":
                     self.spikes.append(Spike(wx, wy))
 
+                elif ch == "F":
+                    self.finish = Finish(wx, wy - 2*TILE_SIZE)
+
+
                 elif ch == "G":
-                    self.goal = Goal(wx, wy)
+                    self.goblins.append(Goblin(
+                            x * TILE_SIZE,
+                            y * TILE_SIZE+TILE_SIZE/2,
+                            self.goblin_sprites
+                        )
+                    )
+                elif ch == "p":
+                    self.plates.append(
+                        HoldPlate(
+                            x*TILE_SIZE,
+                            y*TILE_SIZE + TILE_SIZE - 12,
+                            key="A"
+                        )
+                    )
+
+                elif ch == "P":
+                    self.plates.append(
+                        LatchPlate(
+                            x*TILE_SIZE,
+                            y*TILE_SIZE + TILE_SIZE - 12,
+                            key="B"
+                        )
+                    )
+
+
+                elif ch == "D":
+                    self.doors.append(
+                        Door(
+                            x*TILE_SIZE,
+                            y*TILE_SIZE,
+                            TILE_SIZE,
+                            TILE_SIZE,
+                            key="B",
+                            mode="latch",
+                            logic="AND"
+                        )
+                    )
+
+                elif ch == "d":  # OR door
+                    self.doors.append(
+                        Door(
+                            x*TILE_SIZE,
+                            y*TILE_SIZE,
+                            TILE_SIZE,
+                            TILE_SIZE,
+                            key="A",
+                            mode="hold",
+                            logic="OR"
+                        )
+                    )
+
+
 
                 elif ch == "C":
                     self.checkpoints.append(Checkpoint(wx, wy))
