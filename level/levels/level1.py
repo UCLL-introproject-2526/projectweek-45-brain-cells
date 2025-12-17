@@ -22,4 +22,4 @@ class Level1(AsciiLevel):
 
     def __init__(self):
         super().__init__()
-        self.load_background("assets/level1.jpg")
+        self.load_background("assets/Backdrops/level1.jpg")

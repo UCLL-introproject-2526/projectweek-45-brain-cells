@@ -51,4 +51,4 @@ class Level0(AsciiLevel):
 
     def __init__(self):
         super().__init__()
-        self.load_background("assets/test.jpg")
+        self.load_background("assets/Backdrops/test.jpg")
