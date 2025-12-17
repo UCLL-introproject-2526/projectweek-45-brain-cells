@@ -193,6 +193,10 @@ def main():
             grid.draw_highlight(screen, camera, cx, cy)
 
         hotbar.draw(screen, state.selected_tool)
+        # HOTBAR TOOLTIP
+        mx, my = pygame.mouse.get_pos()
+        hotbar.draw_tooltip(screen, mx, my, SCREEN_HEIGHT)
+
 
         # POPUPS
         if text_input and text_input.active:

@@ -53,7 +53,7 @@ class {class_name}(AsciiLevel):
 
 
 def save_preview_level(state):
-    path = os.path.join("level", "levels", "__editor_preview__.py")
+    path = os.path.join("level", "levels", "levelpreview.py")
 
     map_data = ["".join(row) for row in state.map_data]
 

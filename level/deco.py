@@ -50,6 +50,6 @@ class Deco(Entity):
     def draw(self, surface, camera_offset=(0, 0)):
         
         surface.blit(
-            random.choice(self.images),
+            pygame.image.load(f"assets/deco/{random.choice(self.images)}").convert_alpha(),
             (self.rect.x - camera_offset[0], self.rect.y - camera_offset[1])
         )
