@@ -1,7 +1,6 @@
 import pygame
 from settings import *
 
-from utils.input import PlayerInput
 from players.player import Player
 
 from ui.settings_menu import SettingsMenu
@@ -20,13 +19,18 @@ from level.registry import load_all_levels, get_level_names, load_level
 
 class GameState:
     def __init__(self):
+        # -------------------------
+        # MUSIC / POPUPS
+        # -------------------------
+        self.current_music = None
         self.level_complete_popup = None
 
-                # -------------------------
-        # TIMER FONTS
         # -------------------------
-        self.font_big = pygame.font.SysFont(None, 64)    # BIG timer
-        self.font_small = pygame.font.SysFont(None, 28)  # Best time
+        # LEVEL TIMER
+        # -------------------------
+        self.level_time = 0.0
+        self.level_timer_running = False
+
 
         # -------------------------
         # WINDOW + RENDER SURFACE
@@ -34,11 +38,6 @@ class GameState:
         info = pygame.display.Info()
         self.WINDOW_WIDTH = info.current_w
         self.WINDOW_HIGHT = info.current_h
-        # -------------------------
-        # LEVEL TIMER
-        # -------------------------
-        self.level_time = 0.0
-        self.level_timer_running = False
 
         self.screen = pygame.display.set_mode(
             (self.WINDOW_WIDTH, self.WINDOW_HIGHT),
@@ -49,7 +48,14 @@ class GameState:
         pygame.display.set_caption("Split / Merge Dungeon")
 
         self.clock = pygame.time.Clock()
+
+        # -------------------------
+        # FONTS
+        # (create AFTER display is ready)
+        # -------------------------
         self.font = pygame.font.SysFont(None, 36)
+        self.font_big = pygame.font.SysFont(None, 64)    # BIG timer / titles
+        self.font_small = pygame.font.SysFont(None, 28)  # small labels / best time
 
         # -------------------------
         # MENUS
@@ -111,6 +117,7 @@ class GameState:
         # -------------------------
         self.level = None
         self.camera = None
+        self.level_index = 0
 
         # -------------------------
         # EMBEDDED EDITOR
@@ -121,22 +128,23 @@ class GameState:
     # LOAD LEVEL (JSON-BASED)
     # =====================================================
     def load_level(self, idx):
-        self.level_index = idx   # 👈 store index for record saving
+        self.level_index = idx
         self.level = load_level(idx, self.levels_data)
 
         self.merged = None
 
+        # spawn at start
         self.player1.rect.topleft = self.level.spawn_p1
         self.player2.rect.topleft = self.level.spawn_p2
         self.player1.vel.xy = (0, 0)
         self.player2.vel.xy = (0, 0)
+
 
         self.effects.clear()
 
         world_height = len(self.level.map_data) * TILE_SIZE
         self.camera = Camera(world_height)
 
-        # ⏱ TIMER RESET
+        # ✅ timer resets ONLY when level starts
         self.level_time = 0.0
         self.level_timer_running = True
-

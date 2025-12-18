@@ -81,6 +81,7 @@ def update_gameplay(state, dt):
     active = [state.merged] if state.merged else [state.player1, state.player2]
     state.level.update(dt, active)
 
+    
     # -------------------------
     # DEATH
     # -------------------------
@@ -108,14 +109,12 @@ def update_gameplay(state, dt):
             died = True
 
     if died:
-        state.player1.rect.topleft = state.level.spawn_p1
-        state.player2.rect.topleft = state.level.spawn_p2
+        state.player1.rect.topleft = state.level.respawn_p1
+        state.player2.rect.topleft = state.level.respawn_p2
+
+
         state.player1.vel.xy = (0, 0)
         state.player2.vel.xy = (0, 0)
-
-        # ⏱ reset timer on death
-        state.level_time = 0.0
-        state.level_timer_running = True
 
     # -------------------------
     # WIN / TIMER / POPUP

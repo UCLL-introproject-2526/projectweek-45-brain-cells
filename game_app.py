@@ -8,6 +8,8 @@ from rendering.draw import draw_world
 from editor.embedded_editor import EmbeddedLevelEditor
 from systems.input_building import build_inputs  # top of file or local import
 from rendering.draw import draw_timer
+from systems.audio import ensure_music
+
 class GameApp:
     def __init__(self):
         self.state = GameState()
@@ -31,6 +33,7 @@ class GameApp:
             # MAIN MENU
             # =====================================================
             if s.app_state == AppState.MAIN_MENU:
+                ensure_music(s, "menu")
                 choice = s.main_menu.handle_input()
 
                 if choice == "Play":
@@ -94,6 +97,7 @@ class GameApp:
             # LEVEL SELECT MENU (UPDATED)
             # =====================================================
             if s.level_menu.visible:
+                ensure_music(s, "menu")
                 # mouse + button handling
                 for event in events:
                     result = s.level_menu.handle_event(event, s.level_names)
@@ -128,9 +132,12 @@ class GameApp:
             # SETTINGS MENU
             # =====================================================
             if s.settings_menu.visible:
+                ensure_music(s, "menu")
                 s.settings_menu.handle_input()
 
-                
+                pygame.mixer.music.set_volume(
+        s.settings_menu.volume / 100.0
+    )
 
                 if s.settings_menu.layout_changed:
                     s.p1_input, s.p2_input = build_inputs(
@@ -174,6 +181,7 @@ class GameApp:
 
             # ---------------- LEVEL COMPLETE POPUP ----------------
             if s.level_complete_popup:
+                ensure_music(s, "menu")
                 for event in events:
                     s.level_complete_popup.handle_event(event)
 
@@ -193,7 +201,7 @@ class GameApp:
             # ---------------- TIMER ----------------
             if s.level_timer_running:
                 s.level_time += dt
-
+            ensure_music(s, "game")
             update_gameplay(s, dt)
             update_effects(s.effects, dt)
 

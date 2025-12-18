@@ -4,6 +4,11 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 FPS = 60
 
+MENU_MUSIC = "assets/music/main_menu.mp3"
+GAME_MUSIC = "assets/music/level_music.mp3"
+
+
+
 TILE_SIZE = 45
 GRAVITY = 0.85
 
