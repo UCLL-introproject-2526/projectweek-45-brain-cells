@@ -211,9 +211,9 @@ while running:
         level.draw(render_surface, cam)
         draw_actors(render_surface, cam)
 
-        level_menu.draw(render_surface, level_names, unlocked_levels)
+        level_menu.draw(screen, level_names, unlocked_levels)
         scaled = pygame.transform.scale(
-            render_surface, screen.get_size()
+            screen, screen.get_size()
         )
         screen.blit(scaled, (0, 0))
         pygame.display.flip()
@@ -240,7 +240,7 @@ while running:
         level.draw(render_surface, cam)
         draw_actors(render_surface, cam)
 
-        settings_menu.draw(render_surface)
+        settings_menu.draw(screen)
         scaled = pygame.transform.scale(
             render_surface, screen.get_size()
         )
