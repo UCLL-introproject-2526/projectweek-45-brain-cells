@@ -1,72 +1,163 @@
 import pygame
 
+
 class NewLevelDialog:
-    def __init__(self, font):
+    def __init__(self, font, background_image="assets/start_menu.png"):
         self.font = font
+        self.title_font = pygame.font.Font("assets/Cinzel-Bold.ttf", 48)
+
+        self.background = pygame.image.load(background_image).convert_alpha()
+
         self.active = True
-
-        self.name = "New Level"
-        self.width = "100"
-        self.height = "40"
-        self.focus = "name"
-
         self.result = None
 
+        self.fields = {
+            "name": "New Level",
+            "width": "100",
+            "height": "40",
+        }
+
+        self.order = ["name", "width", "height"]
+        self.focus_index = 0
+
+        self.color_normal = (220, 220, 235)
+        self.color_selected = (255, 215, 0)
+        self.box_color = (60, 60, 90)
+
+        self._up_prev = False
+        self._down_prev = False
+        self._enter_prev = False
+
+        self.boxes = {}
+
+    # =====================================================
+    # INPUT
+    # =====================================================
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_TAB:
-                self.focus = {"name": "width", "width": "height", "height": "name"}[self.focus]
+            keys = pygame.key.get_pressed()
 
-            elif event.key == pygame.K_RETURN:
-                self.result = (
-                    self.name,
-                    int(self.width),
-                    int(self.height)
-                )
-                self.active = False
+            def pressed(key, prev):
+                return keys[key] and not prev
 
-            elif event.key == pygame.K_BACKSPACE:
-                self._backspace()
-            else:
-                self._type(event.unicode)
+            up = pressed(pygame.K_UP, self._up_prev)
+            down = pressed(pygame.K_DOWN, self._down_prev)
+            enter = pressed(pygame.K_RETURN, self._enter_prev)
 
-    def _type(self, char):
-        if not char.isprintable():
-            return
-        if self.focus == "name":
-            self.name += char
-        elif self.focus == "width" and char.isdigit():
-            self.width += char
-        elif self.focus == "height" and char.isdigit():
-            self.height += char
+            self._up_prev = keys[pygame.K_UP]
+            self._down_prev = keys[pygame.K_DOWN]
+            self._enter_prev = keys[pygame.K_RETURN]
 
-    def _backspace(self):
-        if self.focus == "name":
-            self.name = self.name[:-1]
-        elif self.focus == "width":
-            self.width = self.width[:-1]
-        elif self.focus == "height":
-            self.height = self.height[:-1]
+            if up:
+                self.focus_index = (self.focus_index - 1) % len(self.order)
+                return
 
+            if down:
+                self.focus_index = (self.focus_index + 1) % len(self.order)
+                return
+
+            if enter:
+                try:
+                    self.result = (
+                        self.fields["name"].strip() or "New Level",
+                        int(self.fields["width"]),
+                        int(self.fields["height"]),
+                    )
+                    self.active = False
+                except ValueError:
+                    pass
+                return
+
+            if event.key == pygame.K_BACKSPACE:
+                key = self.order[self.focus_index]
+                self.fields[key] = self.fields[key][:-1]
+                return
+
+            char = event.unicode
+            key = self.order[self.focus_index]
+
+            if not char.isprintable():
+                return
+
+            if key == "name":
+                self.fields[key] += char
+            elif char.isdigit():
+                self.fields[key] += char
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for i, key in enumerate(self.order):
+                if key in self.boxes and self.boxes[key].collidepoint(event.pos):
+                    self.focus_index = i
+                    break
+
+    # =====================================================
+    # DRAW
+    # =====================================================
     def draw(self, screen):
-        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
+        w, h = screen.get_size()
+
+        # -------------------------
+        # BACKGROUND
+        # -------------------------
+        if self.background:
+            bg = pygame.transform.scale(self.background, (w, h))
+            screen.blit(bg, (0, 0))
+        else:
+            screen.fill((15, 15, 25))
+
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (0, 0))
 
-        box = pygame.Rect(180, 150, 440, 260)
-        pygame.draw.rect(screen, (30, 30, 44), box, border_radius=8)
-
-        def draw_field(label, value, y, active):
-            color = (255, 255, 255) if active else (180, 180, 180)
-            screen.blit(self.font.render(label, True, color), (220, y))
-            pygame.draw.rect(screen, (70, 70, 100), (300, y - 4, 200, 32), 2)
-            screen.blit(self.font.render(value, True, color), (308, y))
-
-        draw_field("Name", self.name, 190, self.focus == "name")
-        draw_field("Width", self.width, 240, self.focus == "width")
-        draw_field("Height", self.height, 290, self.focus == "height")
-
-        screen.blit(
-            self.font.render("Press ENTER to create", True, (200, 200, 220)),
-            (260, 340)
+        # -------------------------
+        # PANEL
+        # -------------------------
+        panel_w, panel_h = 520, 360
+        panel = pygame.Rect(
+            (w - panel_w) // 2,
+            (h - panel_h) // 2,
+            panel_w,
+            panel_h
         )
+
+        pygame.draw.rect(screen, (30, 30, 44), panel, border_radius=12)
+        pygame.draw.rect(screen, (15, 15, 25), panel, 3, border_radius=12)
+
+        title = self.title_font.render("CREATE NEW LEVEL", True, (240, 240, 255))
+        screen.blit(title, title.get_rect(center=(panel.centerx, panel.top + 40)))
+
+        start_y = panel.top + 100
+        spacing = 70
+        box_w, box_h = 280, 40
+
+        self.boxes.clear()
+
+        for i, key in enumerate(self.order):
+            y = start_y + i * spacing
+            active = i == self.focus_index
+
+            color = self.color_selected if active else self.color_normal
+
+            screen.blit(
+                self.font.render(key.capitalize(), True, color),
+                (panel.left + 40, y + 6)
+            )
+
+            box = pygame.Rect(panel.left + 180, y, box_w, box_h)
+            self.boxes[key] = box
+
+            pygame.draw.rect(screen, self.box_color, box, border_radius=6)
+            pygame.draw.rect(screen, color, box, 2, border_radius=6)
+
+            txt = self.font.render(self.fields[key], True, color)
+            screen.blit(
+                txt,
+                (box.x + 10, box.y + (box_h - txt.get_height()) // 2)
+            )
+
+        hint = self.font.render(
+            "↑ ↓ navigate   Enter create",
+            True,
+            (180, 180, 200)
+        )
+        screen.blit(hint, hint.get_rect(center=(panel.centerx, panel.bottom - 30)))

@@ -1,6 +1,4 @@
 import pygame
-from settings import SCREEN_HEIGHT
-
 from editor.editor_state import EditorState
 from editor.camera import Camera
 from editor.grid import Grid
@@ -245,7 +243,7 @@ class EmbeddedLevelEditor:
                 elif event.key == pygame.K_r:
                     mx, my = pygame.mouse.get_pos()
 
-                    if self.hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
+                    if self.hotbar.rect(self.screen.get_height()).collidepoint(mx, my):
                         continue
 
                     world = self.camera.screen_to_world(pygame.Vector2(mx, my))
@@ -268,8 +266,8 @@ class EmbeddedLevelEditor:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = event.pos
 
-                if self.hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
-                    idx = self.hotbar.tool_index_at(mx, my, SCREEN_HEIGHT)
+                if self.hotbar.rect(self.screen.get_height()).collidepoint(mx, my):
+                    idx = self.hotbar.tool_index_at(mx, my, self.screen.get_height())
                     if idx is not None:
                         self.state.selected_tool = idx
                     continue
@@ -339,13 +337,13 @@ class EmbeddedLevelEditor:
         self.grid.draw_lines(self.screen, self.camera)
 
         mx, my = pygame.mouse.get_pos()
-        if not self.hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
+        if not self.hotbar.rect(self.screen.get_height()).collidepoint(mx, my):
             world = self.camera.screen_to_world(pygame.Vector2(mx, my))
             cx, cy = self.grid.world_to_cell(world.x, world.y)
             self.grid.draw_highlight(self.screen, self.camera, cx, cy)
 
         self.hotbar.draw(self.screen, self.state.selected_tool)
-        self.hotbar.draw_tooltip(self.screen, mx, my, SCREEN_HEIGHT)
+        self.hotbar.draw_tooltip(self.screen, mx, my, self.screen.get_height())
 
         if self.text_input and self.text_input.active:
             self.text_input.draw(self.screen)
