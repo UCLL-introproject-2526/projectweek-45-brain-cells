@@ -242,7 +242,7 @@ while running:
 
         settings_menu.draw(screen)
         scaled = pygame.transform.scale(
-            render_surface, screen.get_size()
+            screen, screen.get_size()
         )
         screen.blit(scaled, (0, 0))
         pygame.display.flip()
