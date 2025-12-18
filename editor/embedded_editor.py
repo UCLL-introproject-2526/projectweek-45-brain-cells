@@ -26,10 +26,6 @@ import sys
 class EmbeddedLevelEditor:
     """
     Runs your existing editor INSIDE an existing pygame screen.
-    - Does NOT call pygame.init()
-    - Does NOT call pygame.display.set_mode()
-    - Does NOT call pygame.quit()
-    - Does NOT call pygame.event.get()
     """
 
     def __init__(self, screen):
@@ -64,8 +60,11 @@ class EmbeddedLevelEditor:
         self.bg_picker = None
         self.background_img = None
 
+        # 🔑 TRACK WHICH LEVEL IS BEING EDITED
+        self.editing_level_index = None
+
     # =========================================================
-    # PLAYTEST (kept as-is)
+    # PLAYTEST
     # =========================================================
     def playtest(self):
         from editor.save_load import save_preview_level
@@ -87,16 +86,15 @@ class EmbeddedLevelEditor:
         self.screen.blit(label, label.get_rect(center=self.return_rect.center))
 
     # =========================================================
-    # EVENT HANDLING (IMPORTANT: events are passed in)
+    # EVENT HANDLING
     # =========================================================
     def handle_events(self, events):
-        # The return button should always work
         for event in events:
             self._handle_return_button(event)
 
-        # =================================================
+        # -------------------------
         # START DIALOG
-        # =================================================
+        # -------------------------
         if self.start_dialog and self.start_dialog.active:
             for event in events:
                 self.start_dialog.handle_event(event)
@@ -113,9 +111,9 @@ class EmbeddedLevelEditor:
                 self.level_picker = LevelPicker(self.font)
                 return
 
-        # =================================================
+        # -------------------------
         # NEW LEVEL DIALOG
-        # =================================================
+        # -------------------------
         if self.new_level_dialog and self.new_level_dialog.active:
             for event in events:
                 self.new_level_dialog.handle_event(event)
@@ -127,6 +125,8 @@ class EmbeddedLevelEditor:
             self.state = EditorState(grid_w=w, grid_h=h)
             self.state.level_name = name
 
+            self.editing_level_index = None  # 🔑 NEW LEVEL
+
             self.camera = Camera()
             self.grid = Grid(w, h)
 
@@ -137,15 +137,17 @@ class EmbeddedLevelEditor:
             self.new_level_dialog = None
             return
 
-        # =================================================
-        # LEVEL PICKER (EDIT EXISTING)
-        # =================================================
+        # -------------------------
+        # LEVEL PICKER
+        # -------------------------
         if self.level_picker and self.level_picker.active:
             for event in events:
                 self.level_picker.handle_event(event)
             return
 
-        if self.level_picker and self.level_picker.selected:
+        if self.level_picker and self.level_picker.selected is not None:
+            self.editing_level_index = self.level_picker.selected
+
             self.state = load_level_into_editor(
                 self.level_picker.selected,
                 EditorState
@@ -161,9 +163,9 @@ class EmbeddedLevelEditor:
             self.level_picker = None
             return
 
-        # =================================================
+        # -------------------------
         # PAUSE MENU
-        # =================================================
+        # -------------------------
         if self.pause_dialog and self.pause_dialog.active:
             for event in events:
                 self.pause_dialog.handle_event(event)
@@ -175,31 +177,31 @@ class EmbeddedLevelEditor:
 
             if choice == "resume":
                 pass
+
             elif choice == "save":
-                save_level(self.state)
+                save_level(self.state, self.editing_level_index)
+
             elif choice == "save_&_exit":
-                save_level(self.state)
+                save_level(self.state, self.editing_level_index)
                 self.state = None
                 self.start_dialog = StartDialog(self.font)
+
             elif choice == "exit_without_saving":
                 self.state = None
                 self.start_dialog = StartDialog(self.font)
 
             return
 
-        # =================================================
-        # NORMAL EDITOR LOOP EVENTS
-        # =================================================
-        # If editor isn't initialized yet (still before choosing new/edit), stop.
+        # -------------------------
+        # NORMAL EDITOR LOOP
+        # -------------------------
         if self.state is None:
             return
 
         for event in events:
-            # Hotbar events
             if self.hotbar:
                 self.hotbar.handle_event(event)
 
-            # TEXT INPUT
             if self.text_input and self.text_input.active:
                 result = self.text_input.handle_event(event)
                 if result is not None:
@@ -207,7 +209,6 @@ class EmbeddedLevelEditor:
                     self.text_input = None
                 continue
 
-            # BG PICKER
             if self.bg_picker and self.bg_picker.active:
                 result = self.bg_picker.handle_event(event)
                 if result is not None:
@@ -219,7 +220,6 @@ class EmbeddedLevelEditor:
                     self.bg_picker = None
                 continue
 
-            # KEYBOARD SHORTCUTS
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_n:
                     self.text_input = TextInput(self.font, "Level Name", self.state.level_name)
@@ -240,12 +240,11 @@ class EmbeddedLevelEditor:
                     self.bg_picker = BackgroundPicker(self.font)
 
                 elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                    save_level(self.state)
+                    save_level(self.state, self.editing_level_index)
 
                 elif event.key == pygame.K_r:
                     mx, my = pygame.mouse.get_pos()
 
-                    # ignore hotbar
                     if self.hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
                         continue
 
@@ -266,18 +265,15 @@ class EmbeddedLevelEditor:
                                     self.state.map_data[cy][cx] = new_ch
                                 break
 
-            # MOUSE INPUT
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = event.pos
 
-                # HOTBAR
                 if self.hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
                     idx = self.hotbar.tool_index_at(mx, my, SCREEN_HEIGHT)
                     if idx is not None:
                         self.state.selected_tool = idx
                     continue
 
-                # CAMERA DRAG
                 if not self.hotbar.dragging and (
                     event.button == 2 or
                     (event.button == 1 and pygame.key.get_pressed()[pygame.K_SPACE])
@@ -286,7 +282,6 @@ class EmbeddedLevelEditor:
                     self.drag_anchor = pygame.Vector2(mx, my)
                     continue
 
-                # PLACE / ERASE
                 world = self.camera.screen_to_world(pygame.Vector2(mx, my))
                 cx, cy = self.grid.world_to_cell(world.x, world.y)
 
@@ -304,7 +299,6 @@ class EmbeddedLevelEditor:
     # UPDATE
     # =========================================================
     def update(self, dt):
-        # camera drag (same as your original, but not tied to event.get)
         if self.dragging and self.camera:
             mx, my = pygame.mouse.get_pos()
             delta = self.drag_anchor - pygame.Vector2(mx, my)
@@ -317,7 +311,6 @@ class EmbeddedLevelEditor:
     def draw(self):
         self.screen.fill((12, 12, 18))
 
-        # Draw dialogs first if active
         if self.start_dialog and self.start_dialog.active:
             self.start_dialog.draw(self.screen)
             self._draw_return_button()
@@ -338,13 +331,10 @@ class EmbeddedLevelEditor:
             self._draw_return_button()
             return
 
-        # Normal editor drawing
         if self.state is None:
-            # If we have no state but no dialog active, still show button
             self._draw_return_button()
             return
 
-        # Your draw order (kept)
         self.tile_renderer.draw(self.screen, self.camera, self.state.map_data)
         self.grid.draw_lines(self.screen, self.camera)
 

@@ -98,7 +98,7 @@
     {
       "id": 3,
       "name": "Level 3 - Speedrun",
-      "background": "assets/Backdrops/nature_night.png",
+      "background": "assets/Backdrops/nature_night.jpg",
       "best_time": null,
       "map_data": [
         "....##############################################################################################################..................###################..................",

@@ -1,85 +1,55 @@
 # editor/save_load.py
-import os
+from level.registry import load_all_levels, save_levels_json
 
 
-def next_level_index(levels_dir="level/levels"):
-    os.makedirs(levels_dir, exist_ok=True)
+def save_level(editor_state, level_index=None):
+    """
+    Save the current editor state into levels.json.
 
-    max_idx = 0
-    for name in os.listdir(levels_dir):
-        if name.startswith("level") and name.endswith(".py"):
-            num = name[5:-3]
-            if num.isdigit():
-                max_idx = max(max_idx, int(num))
+    - If level_index is None → create new level
+    - If level_index is provided → overwrite existing level
+    """
+    levels_data = load_all_levels()
 
-    return max_idx + 1
+    level_entry = {
+        "name": editor_state.level_name,
+        "map_data": ["".join(row) for row in editor_state.map_data],
+        "background": editor_state.background_path,
+    }
 
+    # preserve best_time if overwriting
+    if level_index is not None:
+        old = levels_data[level_index]
+        if "best_time" in old:
+            level_entry["best_time"] = old["best_time"]
+        levels_data[level_index] = level_entry
+    else:
+        level_entry["best_time"] = None
+        levels_data.append(level_entry)
 
-def save_level(state):
-    idx = next_level_index()
-    class_name = f"Level{idx}"
-    path = os.path.join("level", "levels", f"level{idx}.py")
-
-    map_data = ["".join(row) for row in state.map_data]
-
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(
-f'''from level.ascii_level import AsciiLevel
-
-
-class {class_name}(AsciiLevel):
-    name = "{state.level_name}"
-
-    map_data = [
-'''
-        )
-
-        for row in map_data:
-            f.write(f'        "{row}",\n')
-
-        f.write(
-'''    ]
-
-    def __init__(self):
-        super().__init__()
-'''
-        )
-
-        if state.background_path:
-            bg = state.background_path.replace("\\", "/")
-            f.write(f'        self.load_background("{bg}")\n')
-
-    print(f"[Editor] Saved {path}")
+    save_levels_json(levels_data)
+    print("[Editor] Level saved to levels.json")
 
 
-def save_preview_level(state):
-    path = os.path.join("level", "levels", "levelpreview.py")
+def save_preview_level(editor_state):
+    """
+    Optional: overwrite a special preview slot.
+    This assumes your game loads index 0 or a known index for preview.
+    """
+    levels_data = load_all_levels()
 
-    map_data = ["".join(row) for row in state.map_data]
+    preview_entry = {
+        "name": f"[EDITOR PREVIEW] {editor_state.level_name}",
+        "map_data": ["".join(row) for row in editor_state.map_data],
+        "background": editor_state.background_path,
+        "best_time": None,
+    }
 
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(
-f'''from level.ascii_level import AsciiLevel
+    # put preview at index 0 (or change if you prefer)
+    if levels_data:
+        levels_data[0] = preview_entry
+    else:
+        levels_data.append(preview_entry)
 
-
-class EditorPreviewLevel(AsciiLevel):
-    name = "[EDITOR PREVIEW] {state.level_name}"
-
-    map_data = [
-'''
-        )
-
-        for row in map_data:
-            f.write(f'        "{row}",\n')
-
-        f.write(
-'''    ]
-
-    def __init__(self):
-        super().__init__()
-'''
-        )
-
-        if state.background_path:
-            bg = state.background_path.replace("\\", "/")
-            f.write(f'        self.load_background("{bg}")\n')
+    save_levels_json(levels_data)
+    print("[Editor] Preview level saved to levels.json")

@@ -1,20 +1,18 @@
-import os
 import pygame
-
-LEVELS_DIR = "level/levels"
+from level.registry import load_all_levels, get_level_names
 
 
 class LevelPicker:
     def __init__(self, font):
         self.font = font
         self.active = True
-        self.selected = None
+        self.selected = None  # will be an index
 
-        self.levels = []
-        for f in os.listdir(LEVELS_DIR):
-            if f.startswith("level") and f.endswith(".py"):
-                name = f[:-3]  # strip .py
-                self.levels.append(name)
+        # -------------------------
+        # LOAD FROM levels.json
+        # -------------------------
+        self.levels_data = load_all_levels()
+        self.levels = get_level_names(self.levels_data)
 
         self.index = 0
 
@@ -30,9 +28,8 @@ class LevelPicker:
                 self.index = min(len(self.levels) - 1, self.index + 1)
 
             elif event.key == pygame.K_RETURN:
-                level_name = self.levels[self.index]
-                # ✅ RETURN FULL MODULE PATH
-                self.selected = f"level.levels.{level_name}"
+                # ✅ RETURN LEVEL INDEX
+                self.selected = self.index
                 self.active = False
 
     def draw(self, screen):
@@ -45,3 +42,10 @@ class LevelPicker:
             color = (255, 255, 255) if i == self.index else (140, 140, 140)
             txt = self.font.render(name, True, color)
             screen.blit(txt, (60, 80 + i * 28))
+
+        hint = self.font.render(
+            "Enter: edit    Esc: cancel",
+            True,
+            (120, 120, 120)
+        )
+        screen.blit(hint, (40, screen.get_height() - 40))
