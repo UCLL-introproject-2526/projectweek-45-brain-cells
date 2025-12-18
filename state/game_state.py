@@ -10,6 +10,9 @@ from ui.level_select_menu import LevelSelectMenu
 from level.registry import discover_levels
 from save.save_manager import load_save
 from core.camera import Camera
+from state.app_state import AppState
+from ui.main_menu import MainMenu
+
 
 from systems.input_building import build_inputs
 
@@ -35,6 +38,14 @@ class GameState:
         self.settings_menu = SettingsMenu(self.font)
         self.level_menu = LevelSelectMenu(self.font)
         self.effects = []
+
+        self.app_state = AppState.MAIN_MENU
+
+        self.main_menu = MainMenu(
+            self.font,
+            "assets/start_menu.png"   # ← your background image
+)
+
 
         # SAVE DATA
         self.save_data = load_save()
