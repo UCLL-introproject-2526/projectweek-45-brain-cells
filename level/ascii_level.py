@@ -182,10 +182,10 @@ class AsciiLevel(BaseLevel):
                     self.deco.append(T1(wx,wy, TILE_SIZE*5))
                 
                 elif ch == "4":
-                    self.deco.append(T2(wx,wy, TILE_SIZE*2))
+                    self.deco.append(T2(wx,wy, TILE_SIZE*5))
 
                 elif ch == "6":
-                    self.deco.append(T4(wx,wy, TILE_SIZE*2))
+                    self.deco.append(T4(wx,wy, TILE_SIZE*5))
 
                 elif ch == "5":
-                    self.deco.append(T3(wx,wy, TILE_SIZE*2))
+                    self.deco.append(T3(wx,wy, TILE_SIZE*5))
