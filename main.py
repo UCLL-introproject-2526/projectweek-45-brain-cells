@@ -241,6 +241,11 @@ while running:
         draw_actors(render_surface, cam)
 
         settings_menu.draw(render_surface)
+        scaled = pygame.transform.scale(
+            render_surface, screen.get_size()
+        )
+        screen.blit(scaled, (0, 0))
+        pygame.display.flip()
         continue
 
     # -------------------------
