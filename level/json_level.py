@@ -43,6 +43,9 @@ class JsonLevel(AsciiLevel):
         self.spawn_p1 = spawn_p1
         self.spawn_p2 = spawn_p2
 
+        self.respawn_p1 = spawn_p1
+        self.respawn_p2 = spawn_p2
+
         # -------------------------------------------------
         # BACKGROUND
         # -------------------------------------------------
