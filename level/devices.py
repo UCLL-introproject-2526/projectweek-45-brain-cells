@@ -97,18 +97,32 @@ class Door:
 
 
 class Finish(Entity):
-    def __init__(self, x, y, w=64, h=96):
+    def __init__(self, x, y, w=64, h=96, variant = 0):
         super().__init__(x, y, w, h)
+        Finish.load_images()
+        self.variant = variant
+        base_image = (
+            Finish.STONE_IMG if variant == 0 else Finish.STONE_DARK_IMG
+        )
+        self.image = pygame.transform.scale(base_image, (w, h))
+    STONE_IMG = None
+    STONE_DARK_IMG = None
+
+    @classmethod
+    def load_images(cls):
+        if cls.STONE_IMG is None:
+            cls.STONE_IMG = pygame.image.load(
+                "assets/tiles/Finish.png"
+            ).convert_alpha()
+
+            cls.STONE_DARK_IMG = pygame.image.load(
+                "assets/tiles/stone_dark.png"
+            ).convert_alpha()        
 
     def draw(self, surface, camera_offset=(0, 0)):
-        r = self.rect.move(-camera_offset[0], -camera_offset[1])
-        pygame.draw.rect(surface, (220, 220, 255), r, 2)
-        pygame.draw.line(
-            surface,
-            (220, 220, 255),
-            (r.centerx, r.top),
-            (r.centerx, r.bottom),
-            2
+        surface.blit(
+            self.image,
+            (self.rect.x - camera_offset[0], self.rect.y - camera_offset[1])
         )
 
 

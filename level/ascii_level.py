@@ -70,7 +70,7 @@ class AsciiLevel(BaseLevel):
                     self.spikes.append(Spike(wx, wy))
 
                 elif ch == "F":
-                    self.finish = Finish(wx, wy - 2*TILE_SIZE)
+                    self.finish = Finish(wx, wy - TILE_SIZE)
 
                 
                 elif ch == "G":
