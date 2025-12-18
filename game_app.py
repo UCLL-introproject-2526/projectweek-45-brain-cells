@@ -6,8 +6,8 @@ from systems.gameplay import update_gameplay
 from systems.effects import update_effects
 from rendering.draw import draw_world
 from editor.embedded_editor import EmbeddedLevelEditor
-
-
+from systems.input_building import build_inputs  # top of file or local import
+from rendering.draw import draw_timer
 class GameApp:
     def __init__(self):
         self.state = GameState()
@@ -130,6 +130,32 @@ class GameApp:
             if s.settings_menu.visible:
                 s.settings_menu.handle_input()
 
+                
+
+                if s.settings_menu.layout_changed:
+                    s.p1_input, s.p2_input = build_inputs(
+                        s.settings_menu.layouts[s.settings_menu.layout_index]
+                    )
+                    s.p1_input.reset()
+                    s.p2_input.reset()
+
+                    s.player1.input = s.p1_input
+                    s.player2.input = s.p2_input
+
+                    # if you're currently merged, update merged inputs too (safe)
+                    if s.merged is not None:
+                        if hasattr(s.merged, "p1_input"):
+                            s.merged.p1_input = s.p1_input
+                        if hasattr(s.merged, "p2_input"):
+                            s.merged.p2_input = s.p2_input
+                        if hasattr(s.merged, "input1"):
+                            s.merged.input1 = s.p1_input
+                        if hasattr(s.merged, "input2"):
+                            s.merged.input2 = s.p2_input
+
+                    s.settings_menu.layout_changed = False
+
+
                 pygame.mixer.music.set_volume(
                     s.settings_menu.volume / 100.0
                 )
@@ -146,9 +172,28 @@ class GameApp:
                 pygame.display.flip()
                 continue
 
+            # ---------------- LEVEL COMPLETE POPUP ----------------
+            if s.level_complete_popup:
+                for event in events:
+                    s.level_complete_popup.handle_event(event)
+
+                s.level_complete_popup.draw(s.screen)
+                pygame.display.flip()
+
+                if s.level_complete_popup.clicked_continue:
+                    s.level_complete_popup = None
+                    s.level_menu.open()
+
+                continue
+
+
             # =====================================================
             # GAMEPLAY
             # =====================================================
+            # ---------------- TIMER ----------------
+            if s.level_timer_running:
+                s.level_time += dt
+
             update_gameplay(s, dt)
             update_effects(s.effects, dt)
 
@@ -156,7 +201,8 @@ class GameApp:
 
             for e in s.effects:
                 e.draw(s.render_surface, cam)
-
+                
+            draw_timer(s.render_surface, s)
             scaled = pygame.transform.scale(
                 s.render_surface, s.screen.get_size()
             )

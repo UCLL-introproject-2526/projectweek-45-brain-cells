@@ -1,38 +1,24 @@
-import pkgutil
-import importlib
-import inspect
-from level.base_level import BaseLevel
-from level.ascii_level import AsciiLevel
+import json
+from level.json_level import JsonLevel
+
+LEVELS_FILE = "levels.json"
 
 
-def discover_levels(package_name="level"):
-    pkg = importlib.import_module(package_name)
-    found = []
+def load_all_levels():
+    with open(LEVELS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
 
-    for modinfo in pkgutil.iter_modules(pkg.__path__):
-        name = modinfo.name
+    return data["levels"]
 
-        # only load level*.py
-        if not name.startswith("level"):
-            continue
 
-        # skip non-level files
-        if name in ("base_level", "ascii_level", "registry"):
-            continue
+def get_level_names(levels_data):
+    return [lvl["name"] for lvl in levels_data]
 
-        module = importlib.import_module(f"{package_name}.{name}")
 
-        for _, obj in inspect.getmembers(module, inspect.isclass):
-            if not issubclass(obj, BaseLevel):
-                continue
+def load_level(index, levels_data):
+    return JsonLevel(levels_data[index])
 
-            # 🔑 skip abstract/helper classes
-            if obj in (BaseLevel, AsciiLevel):
-                continue
 
-            found.append(obj)
-
-    # 🔑 ensure deterministic order: level1, level2, ...
-    found.sort(key=lambda cls: cls.__module__)
-
-    return found
+def save_levels_json(levels_data):
+    with open(LEVELS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"levels": levels_data}, f, indent=2)

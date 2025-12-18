@@ -15,7 +15,6 @@ class SettingsMenu:
         self.layout_index = 0
 
         self.volume = 80  # percent
-
         self.selected = 0
 
         self._up_prev = False
@@ -24,8 +23,12 @@ class SettingsMenu:
         self._right_prev = False
         self._enter_prev = False
 
+        # ✅ NEW: tells GameApp to rebuild inputs once
+        self.layout_changed = False
+
     def toggle(self):
         self.visible = not self.visible
+        self.layout_changed = False
 
     def handle_input(self):
         keys = pygame.key.get_pressed()
@@ -52,7 +55,10 @@ class SettingsMenu:
 
         if self.options[self.selected] == "Keyboard Layout":
             if left or right:
+                old = self.layout_index
                 self.layout_index = (self.layout_index + 1) % len(self.layouts)
+                if self.layout_index != old:
+                    self.layout_changed = True  # ✅ trigger rebuild
 
         elif self.options[self.selected] == "Volume":
             if left:

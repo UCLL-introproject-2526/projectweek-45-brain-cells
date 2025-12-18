@@ -163,14 +163,3 @@ class LevelSelectMenu:
             btn_text,
             btn_text.get_rect(center=self.return_button.center)
         )
-
-        # hint
-        hint = self.font.render(
-            "↑↓ select   Enter load   Mouse Wheel scroll   Esc back",
-            True,
-            (200, 200, 210)
-        )
-        surface.blit(
-            hint,
-            (panel.centerx - hint.get_width() // 2, panel.bottom - 25)
-        )
