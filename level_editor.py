@@ -341,6 +341,13 @@ def main():
 
     pygame.quit()
 
-
-if __name__ == "__main__":
+def run_editor():
+    """
+    Entry point used by the game main menu.
+    """
     main()
+if __name__ == "__main__":
+    run_editor()
+
+
+
