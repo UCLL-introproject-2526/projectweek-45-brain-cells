@@ -70,6 +70,9 @@ class BaseLevel:
 
         # Deco
         self.deco = []
+        self.t1 = []
+        self.t2 = []
+        self.t3 = []
         
         # enemies
         self.goblins = []
@@ -288,6 +291,15 @@ class BaseLevel:
         
         for deco in self.deco:
             deco.draw(surface, camera_offset)
+        
+        for t1 in self.t1:
+            t1.draw(surface, camera_offset)
+        
+        for t3 in self.t3:
+            t3.draw(surface, camera_offset)
+        
+        for t2 in self.t2:
+            t2.draw(surface, camera_offset)
 
         if self.finish:
             self.finish.draw(surface, camera_offset)

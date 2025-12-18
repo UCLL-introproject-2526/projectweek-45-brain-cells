@@ -16,6 +16,7 @@ from level.right_drop import RDrop
 from level.downside import Down, RDown, LDown
 from level.inner import LInner, RInner
 from level.deco import Deco
+from level.tekst import T1,T2,T3
 import pygame
 from assets.goblins import load_goblin_sprites
 from level.goblin import Goblin  
@@ -175,4 +176,13 @@ class AsciiLevel(BaseLevel):
                     self.right_inner.append(RInner(wx,wy, TILE_SIZE))
 
                 elif ch == "/":
+                    self.deco.append(Deco(wx,wy, TILE_SIZE))
+                
+                elif ch == "3":
+                    self.deco.append(Deco(wx,wy, TILE_SIZE))
+                
+                elif ch == "4":
+                    self.deco.append(Deco(wx,wy, TILE_SIZE))
+
+                elif ch == "5":
                     self.deco.append(Deco(wx,wy, TILE_SIZE))
