@@ -8,9 +8,10 @@ class EditorState:
         self.grid_h = grid_h
 
         self.map_data = [
-            [" " for _ in range(grid_w)]
+            ["." for _ in range(grid_w)]
             for _ in range(grid_h)
         ]
+
 
         # metadata
         self.level_name = "New Level"

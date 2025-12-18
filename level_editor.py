@@ -191,6 +191,8 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            hotbar.handle_event(event)
+
             # -------------------------
             # TEXT INPUT POPUP
             # -------------------------
@@ -243,6 +245,8 @@ def main():
 
                 elif event.key == pygame.K_r:
                     mx, my = pygame.mouse.get_pos()
+
+                    # ignore hotbar
                     if hotbar.rect(SCREEN_HEIGHT).collidepoint(mx, my):
                         continue
 
@@ -251,9 +255,14 @@ def main():
 
                     if state.in_bounds(cx, cy):
                         ch = state.map_data[cy][cx]
-                        for _, reg_ch, _, _, rotatable in ENTITY_REGISTRY:
+
+                        for entry in ENTITY_REGISTRY:
+                            reg_ch = entry[1]
+                            rotatable = entry[4]
+
                             if reg_ch == ch and rotatable:
                                 new_ch = rotate_char(ch)
+
                                 if new_ch != ch:
                                     state.snapshot()
                                     state.map_data[cy][cx] = new_ch
@@ -273,9 +282,11 @@ def main():
                     continue
 
                 # CAMERA DRAG
-                if event.button == 2 or (
-                    event.button == 1 and pygame.key.get_pressed()[pygame.K_SPACE]
+                if not hotbar.dragging and (
+                    event.button == 2 or
+                    (event.button == 1 and pygame.key.get_pressed()[pygame.K_SPACE])
                 ):
+
                     dragging = True
                     drag_anchor = pygame.Vector2(mx, my)
                     continue

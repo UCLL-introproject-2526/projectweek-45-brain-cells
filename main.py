@@ -94,7 +94,18 @@ def resolve_spawn_collision(rect, solids, max_iters=8):
 pygame.init()
 pygame.mixer.init()
 
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+info = pygame.display.Info()
+WINDOW_WIDTH = info.current_w
+WINDOW_HIGHT = info.current_h
+
+screen = pygame.display.set_mode(
+    (WINDOW_WIDTH, WINDOW_HIGHT),
+    pygame.RESIZABLE
+)
+
+render_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+
 pygame.display.set_caption("Split / Merge Dungeon")
 
 clock = pygame.time.Clock()
@@ -128,12 +139,12 @@ running = True
 level = None
 
 
-def draw_actors(screen, cam):
+def draw_actors(surface, cam):
     if merged:
-        merged.draw(screen, cam)
+        merged.draw(surface, cam)
     else:
-        player1.draw(screen, cam)
-        player2.draw(screen, cam)
+        player1.draw(surface, cam)
+        player2.draw(surface, cam)
 
 def load_level(idx):
     global level, merged, camera
@@ -163,6 +174,8 @@ level_menu.open()
 while running:
     dt = clock.tick(FPS) / 1000.0
     t += dt
+
+    render_surface.fill((0, 0, 0))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -194,11 +207,15 @@ while running:
             load_level(choice)
             level_menu.close()
 
-        level.draw_background(screen, cam, t)
-        level.draw(screen, cam)
-        draw_actors(screen, cam)
+        level.draw_background(render_surface, cam, t)
+        level.draw(render_surface, cam)
+        draw_actors(render_surface, cam)
 
         level_menu.draw(screen, level_names, unlocked_levels)
+        scaled = pygame.transform.scale(
+            screen, screen.get_size()
+        )
+        screen.blit(scaled, (0, 0))
         pygame.display.flip()
         continue
 
@@ -219,11 +236,15 @@ while running:
 
         pygame.mixer.music.set_volume(settings_menu.volume / 100.0)
 
-        level.draw_background(screen, cam, t)
-        level.draw(screen, cam)
-        draw_actors(screen, cam)
+        level.draw_background(render_surface, cam, t)
+        level.draw(render_surface, cam)
+        draw_actors(render_surface, cam)
 
         settings_menu.draw(screen)
+        scaled = pygame.transform.scale(
+            screen, screen.get_size()
+        )
+        screen.blit(scaled, (0, 0))
         pygame.display.flip()
         continue
 
@@ -345,13 +366,19 @@ while running:
     # -------------------------
     # DRAW
     # -------------------------
-    level.draw_background(screen, cam, t)
-    level.draw(screen, cam)
-    draw_actors(screen, cam)
+    level.draw_background(render_surface, cam, t)
+    level.draw(render_surface, cam)
+    draw_actors(render_surface, cam)
 
     for e in effects:
-        e.draw(screen, cam)
-
+        e.draw(render_surface, cam)
+    
+    scaled = pygame.transform.scale(
+        render_surface,
+        screen.get_size()
+    )
+    screen.blit(scaled, (0, 0))
     pygame.display.flip()
+
 
 pygame.quit()

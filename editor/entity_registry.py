@@ -16,7 +16,6 @@ from level.right_drop import RDrop
 from level.downside import Down, RDown, LDown
 from level.inner import LInner, RInner
 from level.deco import Deco
-from level.goblin import Goblin
 import pygame
 from settings import TILE_SIZE
 
@@ -67,6 +66,9 @@ ENTITY_REGISTRY = [
 
 
     ("Cannon >", ">", Cannon, {"direction": ">"}, True, False),
+    ("Cannon v", "v", Cannon, {"direction": "v"}, True, False),
+    ("Cannon <", "<", Cannon, {"direction": "<"}, True, False),
+    ("Cannon ^", "^", Cannon, {"direction": "^"}, True, False),
 
     ("Spawn P1", "1", None, {}, False, preview_player1),
     ("Spawn P2", "2", None, {}, False, preview_player2),
