@@ -3,6 +3,8 @@ import inspect
 import os
 
 
+
+
 def load_level_into_editor(level_module_name, EditorStateCls):
     """
     Loads an existing level class WITHOUT instantiating gameplay logic.
@@ -13,6 +15,12 @@ def load_level_into_editor(level_module_name, EditorStateCls):
     module = importlib.import_module(level_module_name)
 
     level_class = None
+
+    def ensure_mutable(self):
+        self.map_data = [
+            list(row) if isinstance(row, str) else row
+            for row in self.map_data
+        ]
 
     # find LevelX class inside module
     for _, obj in inspect.getmembers(module, inspect.isclass):

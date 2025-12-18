@@ -1,87 +1,138 @@
-# editor/hotbar.py
 import pygame
 
 
 class Hotbar:
-    def __init__(self, tools, preview_cache, height=96):
-        self.tools = tools
+    def __init__(self, registry, preview_cache):
+        self.registry = registry
         self.preview_cache = preview_cache
-        self.height = height
 
-        self.slot_size = 64
-        self.padding = 12
-        self.spacing = 8
+        self.icon_size = 48
+        self.padding = 8
+        self.margin = 8
 
-        self.font = pygame.font.SysFont(None, 20)
+        # scrolling
+        self.scroll_x = 0
+        self.dragging = False
+        self.drag_start_x = 0
+        self.scroll_start_x = 0
 
-    def rect(self, screen_height):
+    # --------------------------------------------------
+    # GEOMETRY
+    # --------------------------------------------------
+    def rect(self, screen_h):
         return pygame.Rect(
             0,
-            screen_height - self.height,
+            screen_h - self.icon_size - self.margin * 2,
             pygame.display.get_surface().get_width(),
-            self.height,
+            self.icon_size + self.margin * 2
         )
 
-    def tool_index_at(self, mx, my, screen_height):
-        y0 = screen_height - self.height
-        x = self.padding
+    def total_width(self):
+        return len(self.registry) * (self.icon_size + self.padding)
 
-        for i in range(len(self.tools)):
-            slot = pygame.Rect(x, y0 + 16, self.slot_size, self.slot_size)
-            if slot.collidepoint(mx, my):
-                return i
-            x += self.slot_size + self.spacing
+    # --------------------------------------------------
+    # INPUT
+    # --------------------------------------------------
+    def handle_event(self, event):
+        screen = pygame.display.get_surface()
+        if not screen:
+            return
+
+        bar_rect = self.rect(screen.get_height())
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if bar_rect.collidepoint(event.pos):
+                self.dragging = True
+                self.drag_start_x = event.pos[0]
+                self.scroll_start_x = self.scroll_x
+
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            dx = event.pos[0] - self.drag_start_x
+            self.scroll_x = self.scroll_start_x + dx
+
+            max_scroll = 0
+            min_scroll = min(0, screen.get_width() - self.total_width())
+            self.scroll_x = max(min_scroll, min(max_scroll, self.scroll_x))
+
+    # --------------------------------------------------
+    # TOOL SELECTION
+    # --------------------------------------------------
+    def tool_index_at(self, mx, my, screen_h):
+        bar_rect = self.rect(screen_h)
+        if not bar_rect.collidepoint(mx, my):
+            return None
+
+        local_x = mx - self.scroll_x
+        idx = local_x // (self.icon_size + self.padding)
+
+        if 0 <= idx < len(self.registry):
+            return int(idx)
+
         return None
 
-    def hovered_tool(self, mx, my, screen_height):
-        return self.tool_index_at(mx, my, screen_height)
-
+    # --------------------------------------------------
+    # DRAW
+    # --------------------------------------------------
     def draw(self, surface, selected_index):
-        screen_w, screen_h = surface.get_size()
-        y0 = screen_h - self.height
+        bar_rect = self.rect(surface.get_height())
 
-        pygame.draw.rect(surface, (18, 18, 26), (0, y0, screen_w, self.height))
-        pygame.draw.line(surface, (80, 80, 110), (0, y0), (screen_w, y0), 2)
+        # hotbar background
+        pygame.draw.rect(surface, (24, 24, 34), bar_rect)
+        pygame.draw.rect(surface, (60, 60, 90), bar_rect, 2)
 
-        x = self.padding
-        for i, entry in enumerate(self.tools):
-            slot = pygame.Rect(x, y0 + 16, self.slot_size, self.slot_size)
+        y = bar_rect.y + self.margin
 
-            pygame.draw.rect(surface, (30, 30, 44), slot, border_radius=6)
-            pygame.draw.rect(
-                surface,
-                (200, 200, 240) if i == selected_index else (80, 80, 110),
-                slot,
-                2,
-                border_radius=6,
-            )
+        for i, entry in enumerate(self.registry):
+            x = self.scroll_x + i * (self.icon_size + self.padding)
 
+            # cull offscreen icons
+            if x + self.icon_size < 0 or x > bar_rect.width:
+                continue
+
+            icon_rect = pygame.Rect(x, y, self.icon_size, self.icon_size)
+
+            # slot background
+            pygame.draw.rect(surface, (32, 32, 46), icon_rect)
+
+            # slot border
+            border_col = (120, 140, 220) if i == selected_index else (70, 70, 100)
+            pygame.draw.rect(surface, border_col, icon_rect, 2)
+
+            # draw preview centered
             preview = self.preview_cache.get(entry)
-            surface.blit(preview, slot)
+            if preview:
+                pr = preview.get_rect(center=icon_rect.center)
+                surface.blit(preview, pr)
 
-            x += self.slot_size + self.spacing
 
-    # -------------------------
+    # --------------------------------------------------
     # TOOLTIP
-    # -------------------------
-    def draw_tooltip(self, surface, mx, my, screen_height):
-        idx = self.hovered_tool(mx, my, screen_height)
+    # --------------------------------------------------
+    def draw_tooltip(self, surface, mx, my, screen_h):
+        idx = self.tool_index_at(mx, my, screen_h)
         if idx is None:
             return
 
-        name = self.tools[idx][0]
-        text = self.font.render(name, True, (240, 240, 250))
+        name = self.registry[idx][0]
+        font = pygame.font.SysFont(None, 20)
 
+        text = font.render(name, True, (240, 240, 240))
         padding = 6
-        box = text.get_rect()
-        box.topleft = (mx + 12, my - box.height - 12)
+
+        rect = text.get_rect()
+        rect.topleft = (mx + 12, my - rect.height - 12)
+
         bg = pygame.Rect(
-            box.x - padding,
-            box.y - padding,
-            box.width + padding * 2,
-            box.height + padding * 2,
+            rect.x - padding,
+            rect.y - padding,
+            rect.width + padding * 2,
+            rect.height + padding * 2
         )
 
-        pygame.draw.rect(surface, (20, 20, 30), bg, border_radius=6)
-        pygame.draw.rect(surface, (160, 160, 200), bg, 1, border_radius=6)
-        surface.blit(text, box)
+        pygame.draw.rect(surface, (20, 20, 30), bg)
+        pygame.draw.rect(surface, (80, 80, 110), bg, 1)
+
+        surface.blit(text, rect)

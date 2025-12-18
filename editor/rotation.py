@@ -1,11 +1,14 @@
-# editor/rotation.py
-
-ROTATION_ORDER = [">", "v", "<", "^"]
+ROTATION_MAP = {
+    ">": "v",
+    "v": "<",
+    "<": "^",
+    "^": ">"
+}
 
 
 def rotate_char(ch):
-    if ch not in ROTATION_ORDER:
-        return ch
-
-    i = ROTATION_ORDER.index(ch)
-    return ROTATION_ORDER[(i + 1) % len(ROTATION_ORDER)]
+    """
+    Rotate a rotatable ASCII character.
+    If character is not rotatable, return it unchanged.
+    """
+    return ROTATION_MAP.get(ch, ch)
