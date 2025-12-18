@@ -16,7 +16,6 @@ from level.right_drop import RDrop
 from level.downside import Down, RDown, LDown
 from level.inner import LInner, RInner
 from level.deco import Deco
-from level.goblin import Goblin
 import pygame
 from settings import TILE_SIZE
 
