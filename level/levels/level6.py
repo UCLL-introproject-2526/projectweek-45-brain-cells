@@ -1,8 +1,8 @@
 from level.ascii_level import AsciiLevel
 
 
-class Level8(AsciiLevel):
-    name = "Level 8 - easy 1"
+class Level6(AsciiLevel):
+    name = "Level 6 - easy 1"
 
     map_data = [
 
