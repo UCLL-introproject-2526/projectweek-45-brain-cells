@@ -1,3 +1,4 @@
+import asyncio
 import pygame
 
 from state.game_state import GameState
@@ -216,3 +217,4 @@ class GameApp:
             )
             s.screen.blit(scaled, (0, 0))
             pygame.display.flip()
+
