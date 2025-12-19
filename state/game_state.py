@@ -18,6 +18,7 @@ from level.registry import load_all_levels, get_level_names, load_level
 
 
 class GameState:
+    instance = None
     def __init__(self):
         # -------------------------
         # MUSIC / POPUPS

@@ -26,8 +26,9 @@ class EmbeddedLevelEditor:
     Runs your existing editor INSIDE an existing pygame screen.
     """
 
-    def __init__(self, screen):
+    def __init__(self, screen, game_state):
         self.screen = screen
+        self.game_state = game_state
         pygame.key.set_repeat(200, 60)
 
         self.font = pygame.font.SysFont(None, 28)
@@ -180,9 +181,18 @@ class EmbeddedLevelEditor:
                 save_level(self.state, self.editing_level_index)
 
             elif choice == "save_&_exit":
-                save_level(self.state, self.editing_level_index)
+                save_level(self.state)
+
+                # 🔁 HOT RELOAD LEVELS.JSON INTO RUNNING GAME
+                from level.registry import load_all_levels, get_level_names
+
+                self.game_state.levels_data = load_all_levels()
+                self.game_state.level_names = get_level_names(self.game_state.levels_data)
+
                 self.state = None
                 self.start_dialog = StartDialog(self.font)
+
+
 
             elif choice == "exit_without_saving":
                 self.state = None
