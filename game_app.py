@@ -57,7 +57,7 @@ class GameApp:
             # =====================================================
             if s.app_state == AppState.LEVEL_EDITOR:
                 if s.editor is None:
-                    s.editor = EmbeddedLevelEditor(s.screen)
+                    s.editor = EmbeddedLevelEditor(s.screen, s)
 
                 s.editor.handle_events(events)
                 s.editor.update(dt)
