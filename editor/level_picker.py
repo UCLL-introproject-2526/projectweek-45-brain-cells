@@ -37,32 +37,17 @@ class LevelPicker:
         if event.type != pygame.KEYDOWN:
             return
 
-        keys = pygame.key.get_pressed()
-
-        def pressed(key, prev):
-            return keys[key] and not prev
-
-        up = pressed(pygame.K_UP, self._up_prev)
-        down = pressed(pygame.K_DOWN, self._down_prev)
-        enter = pressed(pygame.K_RETURN, self._enter_prev)
-        esc = pressed(pygame.K_ESCAPE, self._esc_prev)
-
-        self._up_prev = keys[pygame.K_UP]
-        self._down_prev = keys[pygame.K_DOWN]
-        self._enter_prev = keys[pygame.K_RETURN]
-        self._esc_prev = keys[pygame.K_ESCAPE]
-
-        if up:
+        if event.key == pygame.K_UP:
             self.index = (self.index - 1) % len(self.levels)
 
-        elif down:
+        elif event.key == pygame.K_DOWN:
             self.index = (self.index + 1) % len(self.levels)
 
-        elif enter:
+        elif event.key == pygame.K_RETURN:
             self.selected = self.index
             self.active = False
 
-        elif esc:
+        elif event.key == pygame.K_ESCAPE:
             self.active = False
 
     # =====================================================
