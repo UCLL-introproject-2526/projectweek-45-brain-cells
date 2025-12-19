@@ -7,23 +7,22 @@ class Spike(Entity):
     def __init__(self, x, y, w=TILE_SIZE, h=TILE_SIZE):
         super().__init__(x, y, w, h)
 
-        # precompute triangle points in WORLD space
+        # Laad de spike-afbeelding en schaal naar gewenste grootte
+        self.image = pygame.image.load("assets/spike.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (w, h))
+
+        # Bereken triangle-punten voor collision
         self.a = pygame.Vector2(self.rect.left, self.rect.bottom)
         self.b = pygame.Vector2(self.rect.centerx, self.rect.top)
         self.c = pygame.Vector2(self.rect.right, self.rect.bottom)
 
-    # -------------------------
-    # TRIANGLE COLLISION
-    # -------------------------
     def collides(self, actor_rect):
         """
         Returns True if actor touches the spike triangle.
         """
-        # Broad phase (cheap)
         if not self.rect.colliderect(actor_rect):
             return False
 
-        # Test key points of the actor (feet + center)
         test_points = [
             actor_rect.midbottom,
             actor_rect.bottomleft,
@@ -52,15 +51,7 @@ class Spike(Entity):
         has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
 
         return not (has_neg and has_pos)
-    
+
     def draw(self, surface, camera_offset=(0, 0)):
         r = self.rect.move(-camera_offset[0], -camera_offset[1])
-
-        points = [
-            (r.left, r.bottom),
-            (r.centerx, r.top),
-            (r.right, r.bottom)
-        ]
-
-        pygame.draw.polygon(surface, (180, 180, 190), points)
-
+        surface.blit(self.image, r)
