@@ -4,8 +4,8 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 FPS = 60
 
-MENU_MUSIC = "assets/music/main_menu.mp3"
-GAME_MUSIC = "assets/music/level_music.mp3"
+MENU_MUSIC = "assets/music/main_menu.ogg"
+GAME_MUSIC = "assets/music/level_music.ogg"
 
 
 
